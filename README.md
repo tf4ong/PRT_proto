@@ -61,6 +61,6 @@ no match would be made
 - If the tag read does not match the SORT ID associated, the a correction mechanism occurs.
 - During the correction, the original (incorrect) RFID-SORT ID match is removed and replaced with the correct RFID match until a point where the mice had a possible occulusion with other mice based on a defined IOU threshold. In the case of the home-cage, the threshold distance to the entrance would also be considered as a point of occulusion.
 
-![](Correction_mechanism.PNG)
+![](Correction_mechanism.png)
 
 
