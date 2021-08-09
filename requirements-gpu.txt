@@ -1,9 +1,9 @@
 tensorflow-gpu==2.3.0rc0
-opencv-python==4.1.1.26
-scikit-image==0.17.2
-filterpy==1.4.5
+opencv-python
+scikit-image
+filterpy
 pandas
-numpy==1.18.5
+numpy
 shapely
 scipy>=1.4.1
 sklearn
