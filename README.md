@@ -26,7 +26,9 @@ rudimentary data association and state estimation techniques.
 - Greatly depends on detection quality
 - Maintains tracking throughout occlusions and clustering
 - Also used to generated Kalmen filter predictions of mice locations when occuluded/clustered
-![](kalment_predict.png)
+
+![](kalmen_predic.png)
+
 ###### SORT Track Identity Reassociation: A Euclidean Distance Method
 SORT was orignally designed for tracking objects moving in and out of frames at relatively uniform speed.
 Mice movements are often fast changing, therefore SORT often produces new identities for the same mouse.
