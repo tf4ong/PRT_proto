@@ -46,10 +46,14 @@ A tutorial of centroid tracking can be found
 #### RFID_Matching 
 Customed writted script for RFID reading to SORT ID association
 - When a tag is read, the closest detected mice (linear distance) with the the higest IOU with the reader is matched
-![](mathc_example.png)
+
+![](match_example.png)
+
 - To ensure a clean read and RFID match, if there is 2 or more mice within a certain distance or have a certain IOU with the reader,
 no match would be made
+
 ![](failed_match_example.png)
+
 - The SORT ID that is matched will be associated with the tag throughout the video
 
 ###### RFID Vertification and ongoing Corection  
