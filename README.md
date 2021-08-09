@@ -4,6 +4,9 @@
 - Data analyzed offline using a pc/cloud notebook with cuda capable GPU
 
 #### Analytical Codes and Modules
+##### An Overview of the Tracking Process
+![](Track_flow.png)
+
 ##### Yolov4-tensorflow2 
 yolov3-tf2:forked from [the AI guys GitHub Page](https://github.com/theAIGuysCode/tensorflow-yolov4-tflite)
 - A tensorflow2 implementation of yolov4 which is easy to install and use
@@ -23,6 +26,7 @@ rudimentary data association and state estimation techniques.
 - Greatly depends on detection quality
 - Maintains tracking throughout occlusions and clustering
 - Also used to generated Kalmen filter predictions of mice locations when occuluded/clustered
+![](kalment_predict.png)
 ###### SORT Track Identity Reassociation: A Euclidean Distance Method
 SORT was orignally designed for tracking objects moving in and out of frames at relatively uniform speed.
 Mice movements are often fast changing, therefore SORT often produces new identities for the same mouse.
@@ -38,12 +42,18 @@ A tutorial of centroid tracking can be found
 
 
 #### RFID_Matching 
-Customed writted script for track reassocation and RFID assignment
+Customed writted script for RFID reading to SORT ID association
+- When a tag is read, the closest detected mice (linear distance) with the the higest IOU with the reader is matched
+![](mathc_example.png)
+- To ensure a clean read and RFID match, if there is 2 or more mice within a certain distance or have a certain IOU with the reader,
+no match would be made
+![](failed_match_example.png)
+- The SORT ID that is matched will be associated with the tag throughout the video
+
+###### RFID Vertification and ongoing Corection  
+- To ensure continous accuracy in the RFID-SORT ID matches, an ongoing vertification of the match occurs when the tag is read
+- If the tag read does not match the SORT ID associated, the a correction mechanism occurs.
+- During the correction, the original (incorrect) RFID-SORT ID match is removed and replaced with the correct RFID match until a point where the mice had a possible occulusion with other mice based on a defined IOU threshold. In the case of the home-cage, the threshold distance to the entrance would also be considered as a point of occulusion.
+![](revision_process.png)
 
 
-
-###### RFID Identification and Verification
-o
-
-
-![]()
