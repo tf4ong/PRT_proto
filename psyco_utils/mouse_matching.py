@@ -1111,41 +1111,34 @@ def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_io
                 index_checklist_b=list(reversed([ind for ind,sids in enumerate(df.iloc[:i]['track_id'].values) if sid_left in sids]))# appearance of sid in previous frames
                 index_checklist_id_marked_f=search_id_marked_list_forward(df,i,sid_left)# appearance of sid being marked by RFID in future frames
                 index_checklist_id_marked_b=search_id_marked_list_backward(df,i,sid_left)# appearance of sid being marked by RFID in past frames
-                index_checklist_rfid_marked_f=search_rfid_marked_list_forward(df,i,tag_left)# future frames of RFID being marked
-                index_checklist_rid_marked_b=search_rfid_marked_list_backward(df,i,tag_left) #past frames when RFID being marked 
-                if index_checklist_rfid_marked_f ==[]:
-                    index_checklist_rfid_marked_f=[len(df)]
-                if index_checklist_rid_marked_b ==[]:
-                    index_checklist_rid_marked_b=[0]
                 readout=['Remainder',tag_left]
-                if entrance_reader is None:
-                    index_check_list_ent_f=False
-                    index_check_list_ent_b=False
-                else:
-                    index_check_list_ent_f=search_entrance_list_forward(df,i,sid_left)
-                    index_check_list_ent_b=search_entrance_list_backward(df,i,sid_left)
-                    if index_check_list_ent_f ==[]:
-                        index_check_list_ent_f = False
-                    if index_check_list_ent_b ==[]:
-                        index_check_list_ent_b=False
                 #backward matching
-                frame_iou=get_iou_list_b(df,i,sid_left,correct_iou, limit=None)
-                if len(frame_iou) ==0:
-                    frame_iou=0
-                else:
-                    frame_iou=frame_iou[0]# last time sid had an iou>correct iou
                 if len(index_checklist_id_marked_b) ==0:#not marked before
                     backward_rframe=None
                 else:
                     if tag_left==df.iloc[index_checklist_id_marked_b[0]]['ID_marked'][sid_left]:# marked as same RFID as before
                         backward_rframe=index_checklist_id_marked_b[0]
                     else:
+                        frame_iou=get_iou_list_b(df,i,sid_left,correct_iou, limit=None)
+                        if len(frame_iou) ==0:
+                            frame_iou=0
+                        else:
+                            frame_iou=frame_iou[0]# last time sid had an iou>correct iou
+                        if entrance_reader is None:
+                            index_check_list_ent_b=False
+                        else:
+                            index_check_list_ent_b=search_entrance_list_backward(df,i,sid_left)
+                            if index_check_list_ent_b ==[]:
+                                index_check_list_ent_b=False
                         if frame_iou>=index_checklist_id_marked_b[0]:#before it was RFIDed has iou>correct iou
                             if index_check_list_ent_b:
                                 backward_rframe=min(index_check_list_ent_b[0],frame_iou)#checking for entrance area 
                             else:
                                 backward_rframe=frame_iou
                         else:
+                            index_checklist_rid_marked_b=search_rfid_marked_list_backward(df,i,tag_left) #past frames when RFID being marked 
+                            if index_checklist_rid_marked_b ==[]:
+                                index_checklist_rid_marked_b=[0]
                             if index_checklist_id_marked_b[0]>index_checklist_rid_marked_b[0]:# the RFID was marked before the sid was marked
                                 if index_check_list_ent_b:#checking for entrance area 
                                     if index_check_list_ent_b[0]>index_checklist_id_marked_b[0]:
@@ -1157,11 +1150,6 @@ def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_io
                 df=RFID_SID_match(sid_left,index_checklist_b,backward_rframe,
                                df,readout,entrance_reader,RFID_coords,ent_thres,'backward',False,i)
                 #forward match
-                frame_iou=get_iou_list_f(df,i,sid_left, correct_iou, limit=None)
-                if len(frame_iou)==0:
-                    frame_iou=len(df)
-                else:
-                    frame_iou=frame_iou[0]
                     #frame_iou=get_iou_thresh_frame(frame_iou,sid_left,df,correct_iou)# last time sid had an iou>correct iou
                 if len(index_checklist_id_marked_f) ==0:#not marked before
                     forward_rframe=None
@@ -1169,12 +1157,26 @@ def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_io
                     if tag_left==df.iloc[index_checklist_id_marked_f[0]]['ID_marked'][sid_left]:# marked as same RFID as before
                         forward_rframe=index_checklist_id_marked_f[0]
                     else:
+                        frame_iou=get_iou_list_f(df,i,sid_left, correct_iou, limit=None)
+                        if len(frame_iou)==0:
+                            frame_iou=len(df)
+                        else:
+                            frame_iou=frame_iou[0]
+                        if entrance_reader is None:
+                            index_check_list_ent_f=False
+                        else:
+                            index_check_list_ent_f=search_entrance_list_forward(df,i,sid_left)
+                            if index_check_list_ent_f ==[]:
+                                index_check_list_ent_f = False
                         if frame_iou<=index_checklist_id_marked_f[0]:
                             if index_check_list_ent_f:
                                 forward_rframe=max(index_checklist_id_marked_f[0],frame_iou)
                             else:
                                 forward_rframe=frame_iou
                         else:
+                            index_checklist_rfid_marked_f=search_rfid_marked_list_forward(df,i,tag_left)# future frames of RFID being marked
+                            if index_checklist_rfid_marked_f ==[]:
+                                index_checklist_rfid_marked_f=[len(df)]
                             if index_checklist_id_marked_f[0]<index_checklist_rfid_marked_f[0]:# the RFID was marked before the sid was marked
                                 if index_check_list_ent_f:#checking for entrance area 
                                     if index_check_list_ent_f[0]>index_checklist_id_marked_f[0]:
