@@ -3,8 +3,7 @@ import numpy as np
 import math
 from tqdm import tqdm
 import itertools
-from psyco_utils.track_utils import *
-#from track_utils import *
+from track_utils import *
 from scipy.optimize import linear_sum_assignment
 from sort import Sort
 import sys
@@ -20,10 +19,10 @@ def RFID_readout(pathin,ent_reader,time_thresh):
     """
     Loads to RFID csv file in to pandas dataframe[mm.rfid2bpts
     df_RFID_cage=rm.RFID_readout(FLAGS.data,0)# change for entering specific reader as entrance reader
-        1.pathin: path of the rfid files (RFID_data_all.csv and RFID_reads.csv)
+        1.pathin: path of the rfid files ( data_all.csv and text.csv)
         2. ent_entrance reader number
     """
-    df1=pd.read_csv(f'{pathin}/RFID_reads.csv')
+    df1=pd.read_csv(f'{pathin}/text.csv')
     df2=pd.read_csv(f'{pathin}/RFID_data_all.csv',index_col=False)
     df2.Time=pd.to_datetime(df2['Time'],format="%Y-%m-%d_%H:%M:%S.%f")
     df1.Timestamp=pd.to_datetime(df1['Timestamp'],format="%Y-%m-%d %H:%M:%S.%f")
@@ -65,7 +64,7 @@ def sort_tracks_generate(bboxes,resolution,area_thres):
     unmatched_predicts=[]
     mot_tracker=Sort()
     mot_tracker.reset_count()   
-    print('\nAssigning Sort ID to bboxes')
+    print('Assigning Sort ID to bboxes')
     pbar=tqdm(total=len(bboxes),position=0,leave=True)
     for i in bboxes:
         ds_boxes=np.asarray(i)
@@ -355,13 +354,13 @@ def spontanuous_bb_remover(iou_min_bb,reconnect_ids,df_tracks,RFID_coords,fpbb_t
                                         id2remove.append(sort_id)
                                         tracks_remain=[z for z in df_tracks.iloc[frame+ind]['sort_tracks'] if z[4] !=sort_id]
                                         df_tracks.at[frame+ind,'sort_tracks']=tracks_remain
-                                        print(f'\nRemoved sort id {sort_id} at frame {frame+ind} for complete overlap')
+                                        print(f'Removed sort id {sort_id} at frame {frame+ind} for complete overlap')
                 else:
                     for ind in index_checklist:
                         tracks_remain=[z for z in df_tracks.iloc[frame+ind]['sort_tracks'] if z[4] !=sort_id]
                         df_tracks.at[frame+ind,'sort_tracks']=tracks_remain
                         id2remove.append(sort_id)
-    #print(f'Removed sort ids {id2remove} for possible false negatives')
+    print(f'Removed sort ids {id2remove} for possible false negatives')
     id2remove=list(set(id2remove))
     df_tracks['track_id']=[get_ids(x) for x in df_tracks['sort_tracks'].values]
     df_tracks['ious']=[iou_tracks(x) for x in df_tracks['sort_tracks'].values]
@@ -401,7 +400,7 @@ def coverage(df):#,ent_thres,entrance_reader,RFID_coords):
     a=sum([len(i) for i in df.RFID_tracks])
     b=sum([len(i) for i in df.sort_tracks])
     cov=a/b*100
-    print(f'\n Percent Detections matched to RFID Tag: {cov}')
+    print(cov)
     return cov
 
 '''
@@ -487,14 +486,14 @@ def RFID_matching(df_tracks,tags,entrance_reader,RFID_coords,entr_frames,correct
     if entrance_reader is None:
         pass
     else:
-        print('\nStarting to match RFID readings from entrance reader \n')
+        print('Starting to match RFID readings from entrance reader \n')
         pbar=tqdm(total=len(entrance_val),position=0, leave=True)
         for vframe in entrance_val: 
             for readings in df_tracks.iloc[vframe]['RFID_readings']:
                 if readings[1] != 'None' and readings[0] ==entrance_reader and vframe>entr_frames and readings[1] in tags:
                     df_tracks=entrance_RFID_match(df_tracks,vframe,readings,RFID_coords,entr_frames,entrance_reader,ent_thres,folder_path)
             pbar.update(1)
-    print('\nStarting to match RFID readings from Cage readers \n')
+    print('Starting to match RFID readings from Cage readers \n')
     pbar=tqdm(total=len(cage_val),position=0, leave=True)
     for vframe in cage_val:
         for readings in df_tracks.iloc[vframe]['RFID_readings']:
@@ -796,6 +795,7 @@ def get_tracked_activity(motion_status,motion_roi,RFID_tracks,tags):
 
 
 def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,ent_thres,n_mice,pathin):
+    #mayber can optimize speed?
     vid_path=pathin+'/raw.avi'
     combined_df=Combine_RFIDreads(df_tracks,df_RFID)
     validation_frames=combined_df[combined_df.RFID_readings.notnull()].index
@@ -805,15 +805,15 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
         entrance_val=list(set([i for i in validation_frames for x in combined_df.iloc[i]['RFID_readings'] if x[0]==entrance_reader]))
     entrance_times=[combined_df.iloc[t]['Time'] for t in entrance_val]
     entrance_times.sort()
-    bbox_revised = combined_df['sort_tracks']
-    unmatched_predicts=combined_df['unmatched_predicts']
+    #bbox_revised = combined_df['sort_tracks']
+    #unmatched_predicts=combined_df['unmatched_predicts']
     ent_count = [0]
-    print('\nRevising SORT tracks')
+    print('Revising RFID tracks')
     pbar= tqdm(total=len(combined_df),position=0,leave=False)
     for i in range(len(combined_df)):
         if i != 0:
-            tracks=np.asarray(bbox_revised[i])
-            tracks_prev=np.asarray(bbox_revised[i-1])
+            tracks=np.asarray(combined_df.iloc[i]['sort_tracks'])
+            tracks_prev=np.asarray(combined_df.iloc[i-1]['sort_tracks'])
             time=combined_df.iloc[i]['Time']
             if entrance_reader is None:
                 ent_count.append(0) # can't be close to entrance, because there is no entrance.
@@ -823,7 +823,7 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
                 ent_count_tem = len([dist for dist in ent_count_tem if dist <ent_thres])
                 ent_count.append(ent_count_tem)
                 time_threshs=[t for t in entrance_times-time if -0.5<=t<1]
-            if np.asarray(bbox_revised[i-1]).shape[0] > tracks.shape[0]:
+            if np.asarray(tracks_prev).shape[0] > tracks.shape[0]:
                 current_tracks=tracks.tolist()
                 criteria_merge = meet_criteria_trigger(tracks,tracks_prev,i,ent_count,time_threshs) # True, do not enter anti-merge algorithm.
                 criteria_merge = (criteria_merge == 0)
@@ -841,7 +841,7 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
                         if iteraction_list ==[]:
                             missing_bb.pop(strack_inde)
                     if len(missing_bb)>0:
-                        for strack in unmatched_predicts[i]: 
+                        for strack in combined_df.iloc[i]['unmatched_predicts']: 
                             iou_list=[iou(strack, strack_m) for strack_m in missing_bb]
                             iou_list=[inde_val for inde_val, iou_val in enumerate(iou_list) if iou_val>0.5]
                             if len(iou_list)>0:
@@ -871,9 +871,9 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
                                             current_tracks.append(track_add)
                                             #current_tracks=[list(i) for i in current_tracks]
                                             missing_bb.pop(max(iou_list))
-                bbox_revised[i] = current_tracks
+                combined_df.iloc[i]['sort_tracks'] = current_tracks
         pbar.update(1)
-    combined_df['sort_tracks']=bbox_revised
+    #combined_df['sort_tracks']=bbox_revised
     combined_df=combined_df.drop(columns=['Time','RFID_readings'])
     return combined_df
 
@@ -1092,52 +1092,27 @@ def RFID_SID_match(sort_id,match_frames,stop_frame,df_tracks,
 
 
 def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_iou):
-    """
-    Parameters
-    ----------
-    df : Pandas Dataframe
-        df_tracks with all information
-    tags : TYPE
-        list of tags(int)
-    entrance_reader (int)
-        entrance reader id
-        None if no entrance reader
-    RFID_coords : nested list
-        RFID reader bbox
-        [x1,y1,x2,y2]
-    ent_thres : int
-        distance to entracner to do nothing.
-    correct_iou : float
-        iou threshold of bbox to do start correct
-        of wrong RFID-SID matching
-    Returns
-    -------
-    df : TYPE
-        df_tracks with all information
-    Desciption
-    matches all frames with only tag not identified
-    matches the sort id to tag
-    repeat process until no frames have only one identified
-    """
     #can optimize for speed 
     frames_done=[]
     loop_count=1
     while True:
         index_list=get_left_over_tag_indexes(df,tags)
-        print(f'\nStarting Left over Tag match loop {loop_count}')
+        #print(len(index_list))
+        #print('loooook')
+        print(f'Starting Left over Tag match loop {loop_count}')
         pbar=tqdm(total=len(index_list),position=0,leave=True)
         for i in index_list:
             RFID_tracked=[strack[4] for strack in df.iloc[i].RFID_tracks]
-            if len(RFID_tracked)!=len(tags):
+            if len(RFID_tracked)<len(tags):
                 tag_left=list(set(tags)-set(RFID_tracked))[0]
                 sid_left=df.iloc[i].lost_tracks[0][4]
-                # optimize this search section, maybe argsort?
+                # optimize this search section argv?
                 index_checklist_f=[ind+i for ind,sids in enumerate(df.iloc[i:]['track_id'].values) if sid_left in sids]#appearance of sid in future frames
                 index_checklist_b=list(reversed([ind for ind,sids in enumerate(df.iloc[:i]['track_id'].values) if sid_left in sids]))# appearance of sid in previous frames
-                index_checklist_id_marked_f=[ind+i for ind,sids in enumerate(df.iloc[i:]['ID_marked'].values) if sid_left in sids.keys()]# appearance of sid being marked by RFID in future frames
-                index_checklist_id_marked_b=list(reversed([ind for ind,sids in enumerate(df.iloc[:i]['ID_marked'].values) if int(sid_left) in sids.keys()]))# appearance of sid being marked by RFID in past frames
-                index_checklist_rfid_marked_f=[ind+i for ind,sids in enumerate(df.iloc[i:]['ID_marked'].values) if tag_left in sids.values()]# future frames of RFID being marked
-                index_checklist_rid_marked_b=list(reversed([ind for ind,sids in enumerate(df.iloc[:i]['ID_marked'].values) if tag_left in sids.values()])) #past frames when RFID being marked 
+                index_checklist_id_marked_f=search_id_marked_list_forward(df,i,sid_left)# appearance of sid being marked by RFID in future frames
+                index_checklist_id_marked_b=search_id_marked_list_backward(df,i,sid_left)# appearance of sid being marked by RFID in past frames
+                index_checklist_rfid_marked_f=search_rfid_marked_list_forward(df,i,tag_left)# future frames of RFID being marked
+                index_checklist_rid_marked_b=search_rfid_marked_list_backward(df,i,tag_left) #past frames when RFID being marked 
                 if index_checklist_rfid_marked_f ==[]:
                     index_checklist_rfid_marked_f=[len(df)]
                 if index_checklist_rid_marked_b ==[]:
@@ -1147,18 +1122,18 @@ def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_io
                     index_check_list_ent_f=False
                     index_check_list_ent_b=False
                 else:
-                    index_check_list_ent_f=[ind for ind,sids in enumerate(df.iloc[:i]['Entrance_ids'].values) if sid_left in sids]
-                    index_check_list_ent_b=list(reversed([ind for ind,sids in enumerate(df.iloc[:i]['Entrance_ids'].values) if sid_left in sids]))
+                    index_check_list_ent_f=search_entrance_list_forward(df,i,sid_left)
+                    index_check_list_ent_b=search_entrance_list_backward(df,i,sid_left)
                     if index_check_list_ent_f ==[]:
                         index_check_list_ent_f = False
                     if index_check_list_ent_b ==[]:
                         index_check_list_ent_b=False
                 #backward matching
-                frame_iou=list(reversed([inde-1 for inde,iou in enumerate(df.iloc[:i]['ious'].values) if sid_left in chain.from_iterable(iou.keys())]))
+                frame_iou=get_iou_list_b(df,i,sid_left,correct_iou, limit=None)
                 if len(frame_iou) ==0:
                     frame_iou=0
                 else:
-                    frame_iou=get_iou_thresh_frame(frame_iou,sid_left,df,correct_iou)# last time sid had an iou>correct iou
+                    frame_iou=frame_iou[0]# last time sid had an iou>correct iou
                 if len(index_checklist_id_marked_b) ==0:#not marked before
                     backward_rframe=None
                 else:
@@ -1181,11 +1156,13 @@ def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_io
                                 backward_rframe=index_checklist_b[0]+1# too much uncertainity, pass matching process
                 df=RFID_SID_match(sid_left,index_checklist_b,backward_rframe,
                                df,readout,entrance_reader,RFID_coords,ent_thres,'backward',False,i)
-                frame_iou=[inde+i for inde,iou in enumerate(df.iloc[i:]['ious'].values) if sid_left in chain.from_iterable(iou.keys())]
+                #forward match
+                frame_iou=get_iou_list_f(df,i,sid_left, correct_iou, limit=None)
                 if len(frame_iou)==0:
                     frame_iou=len(df)
                 else:
-                    frame_iou=get_iou_thresh_frame(frame_iou,sid_left,df,correct_iou)# last time sid had an iou>correct iou
+                    frame_iou=frame_iou[0]
+                    #frame_iou=get_iou_thresh_frame(frame_iou,sid_left,df,correct_iou)# last time sid had an iou>correct iou
                 if len(index_checklist_id_marked_f) ==0:#not marked before
                     forward_rframe=None
                 else:
@@ -1252,17 +1229,107 @@ def iteraction(bb_test,bb_gt):
 
 
 
+# very repetitive functions, should think of a better way
+
+def search_id_marked_list_forward(df,frame,sid,limit=None):
+    list_id_marked=[]
+    count=0
+    for ind,sids in enumerate(df.iloc[frame:]['ID_marked'].values):
+        if sid in sids.keys():
+            list_id_marked.append(ind+frame)
+            break
+        count+=1
+        if count==limit:
+            break
+    return list_id_marked
+
+def search_id_marked_list_backward(df,frame,sid,limit=None):
+    list_id_marked=[]
+    count=0
+    for ind,sids in enumerate(reversed(df.iloc[:frame]['ID_marked'].values)):
+        if sid in sids.keys():
+            list_id_marked.append(frame-ind-1)
+            break
+        count+=1
+        if count==limit:
+            break
+    return list_id_marked
+
+def search_rfid_marked_list_backward(df,frame,tag,limit=None):
+    list_id_marked=[]
+    count=0
+    for ind,tags in enumerate(reversed(df.iloc[:frame]['ID_marked'].values)):
+        if tag in tags.values():
+            list_id_marked.append(frame-ind-1)
+            break
+        count+=1
+        if count==limit:
+            break
+    return list_id_marked
+
+def search_rfid_marked_list_forward(df,frame,tag,limit=None):
+    list_id_marked=[]
+    count=0
+    for ind,tags in enumerate(df.iloc[frame:]['ID_marked'].values):
+        if tag in tags.values():
+            list_id_marked.append(ind+frame)
+            break
+        count+=1
+        if count==limit:
+            break
+    return list_id_marked
 
 
 
+def search_entrance_list_forward(df,frame,sid,limit=None):
+    list_id_marked=[]
+    count=0
+    for ind,sids in enumerate(df.iloc[:frame]['Entrance_ids'].values):
+        if sid in sids:
+             list_id_marked.append(ind+frame)
+             break
+        count+=1
+        if count == limit:
+             break
+    return list_id_marked
+             
+
+def search_entrance_list_backward(df,frame,sid,limit=None):
+    list_id_marked=[]
+    count=0
+    for ind,sids in enumerate(reversed(df.iloc[:frame]['Entrance_ids'].values)):
+        if sid in sids:
+            list_id_marked.append(frame-ind-1)
+            break
+        count+=1
+        if count==limit:
+            break
+    return list_id_marked
 
 
+def get_iou_list_f(df,frame,sid, correct_iou, limit=None):
+    list_id_marked=[]
+    count=0
+    for ind, iou in enumerate(df.iloc[:frame]['ious'].values):
+        if len([t for t,k in iou.items() if sid in t and k>correct_iou])>0:
+            list_id_marked.append(frame+ind)
+            break
+        count+=1
+        if count == limit:
+            break
+    return list_id_marked
 
-
-
-
-
-
+def get_iou_list_b(df,frame,sid, correct_iou, limit=None):
+    list_id_marked=[]
+    count=0
+    for ind, iou in enumerate(reversed(df.iloc[frame:]['ious'].values)):
+        if len([t for t,k in iou.items() if sid in t and k>correct_iou])>0:
+            list_id_marked.append(frame-ind-1)
+            break
+        count+=1
+        if count == limit:
+            break
+    return list_id_marked
 
 
 
