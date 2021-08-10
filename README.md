@@ -15,7 +15,7 @@ yolov3-tf2:forked from [the AI guys GitHub Page](https://github.com/theAIGuysCod
 - Orginal implmentation in darknet can be found at [AlexeyAB GitHub Page](https://github.com/AlexeyAB/darknet)
 - Three weight included as of the current release
 - Weights are adviced to be trained on the original darknet implementation
-- The AI guys has provided an excellent [tutorial](https://www.youtube.com/watch?v=mmj3nxGT2YQ) to train using google colab.
+- The AI guys has provided an excellent [tutorial](https://www.youtube.com/watch?v=mmj3nxGT2YQ) to train weights in darknet using google colab.
 ##### SORT 
 SORT: forcked from [abewly GitHub Page](https://github.com/abewley/sort)
 - A simple online and realtime tracking algorithm for 2D multiple object tracking in video sequences.
