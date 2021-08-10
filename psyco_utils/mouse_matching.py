@@ -1180,12 +1180,12 @@ def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_io
                             if index_checklist_id_marked_f[0]<index_checklist_rfid_marked_f[0]:# the RFID was marked before the sid was marked
                                 if index_check_list_ent_f:#checking for entrance area 
                                     if index_check_list_ent_f[0]>index_checklist_id_marked_f[0]:
-                                        forward_rframe=index_check_list_ent_b[0]
+                                        forward_rframe=index_check_list_ent_f[0]
                                     else:
                                         forward_rframe=index_checklist_id_marked_f[0]
                 df=RFID_SID_match(sid_left,index_checklist_f,forward_rframe,
                                df,readout,entrance_reader,RFID_coords,ent_thres,'forward',False,i)
-                pbar.update(1)
+            pbar.update(1)
         frames_done+=index_list.copy()
         index_list=get_left_over_tag_indexes(df,tags)
         if len(index_list) ==0:
