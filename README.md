@@ -65,6 +65,7 @@ no match would be made
 
 ![](Correction_mechanism.png)
 ##### Tracking in Different Environments and Rodent Strains
+Increase arena size and RFID readers connected to track more mice. The limit is the sky!
 ##### OpenField
 ![](open_field.PNG)
 ##### White Mice in 3 Chamber Arena (White Background) 
