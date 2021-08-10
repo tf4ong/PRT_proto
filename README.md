@@ -15,7 +15,7 @@ yolov3-tf2:forked from [the AI guys GitHub Page](https://github.com/theAIGuysCod
 - Orginal implmentation in darknet can be found at [AlexeyAB GitHub Page](https://github.com/AlexeyAB/darknet)
 - Three weight included as of the current release
 - Weights are adviced to be trained on the original darknet implementation
-- The AI guys has provided an excellent [tutorial](https://www.youtube.com/watch?v=mmj3nxGT2YQ) to train using google colab.
+- The AI guys has provided an excellent [tutorial](https://www.youtube.com/watch?v=mmj3nxGT2YQ) to train weights in darknet using google colab.
 ##### SORT 
 SORT: forcked from [abewly GitHub Page](https://github.com/abewley/sort)
 - A simple online and realtime tracking algorithm for 2D multiple object tracking in video sequences.
@@ -32,10 +32,12 @@ rudimentary data association and state estimation techniques.
 ###### SORT Track Identity Reassociation: A Euclidean Distance Method
 SORT was orignally designed for tracking objects moving in and out of frames at relatively uniform speed.
 Mice movements are often fast changing, therefore SORT often produces new identities for the same mouse.
-####### Home Cage Tracking
-Taking advantage of known number of mice detected in the previous frames and that a new mouse can only enter/exist at a designated location (Entrance), we can therfore reassign new false positive identities to real identities generated. Here, a centroid tracking algorithm based on Euclidean distances along with the Hungarian algorithm  employed. 
 
-#######  Open-field (No Entrance)
+![](SORT_re.PNG)
+
+###### Home Cage Tracking
+Taking advantage of known number of mice detected in the previous frames and that a new mouse can only enter/exist at a designated location (Entrance), we can therfore reassign new false positive identities to real identities generated. Here, a centroid tracking algorithm based on Euclidean distances along with the Hungarian algorithm  employed. 
+###### Open-field (No Entrance)
 In any given scenario, the number of mice in a cage is constant. Therefore, any new false positive identities can then be reassigned to its original true positive identity. Similar to the home-cage, we also employed a centroid tracking algorithm based on Euclidean distances along with the Hungarian algorithm
 
 A tutorial of centroid tracking can be found 
@@ -62,5 +64,15 @@ no match would be made
 - During the correction, the original (incorrect) RFID-SORT ID match is removed and replaced with the correct RFID match until a point where the mice had a possible occulusion with other mice based on a defined IOU threshold. In the case of the home-cage, the threshold distance to the entrance would also be considered as a point of occulusion.
 
 ![](Correction_mechanism.png)
+##### Tracking in Different Environments and Rodent Strains
+Increase arena size and RFID readers connected to track more mice. The limit is the sky!
+##### OpenField
+![](open_field.PNG)
+##### White Mice in 3 Chamber Arena (White Background) 
+![](3chamber.PNG)
+##### Custom Home Cage Tracking
+![](Home_cage_tracks.PNG)
 
+
+For full videos, please access the following [Link](https://youtube.com/playlist?list=PLmcjDqLt_Xk6AAlll3ztvgNI9P3yQxPc2) on youtube.
 
