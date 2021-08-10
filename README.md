@@ -32,7 +32,7 @@ rudimentary data association and state estimation techniques.
 ###### SORT Track Identity Reassociation: A Euclidean Distance Method
 SORT was orignally designed for tracking objects moving in and out of frames at relatively uniform speed.
 Mice movements are often fast changing, therefore SORT often produces new identities for the same mouse.
-####### Home Cage Tracking
+###### Home Cage Tracking
 Taking advantage of known number of mice detected in the previous frames and that a new mouse can only enter/exist at a designated location (Entrance), we can therfore reassign new false positive identities to real identities generated. Here, a centroid tracking algorithm based on Euclidean distances along with the Hungarian algorithm  employed. 
 
 #######  Open-field (No Entrance)
