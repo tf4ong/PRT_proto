@@ -33,7 +33,7 @@ rudimentary data association and state estimation techniques.
 SORT was orignally designed for tracking objects moving in and out of frames at relatively uniform speed.
 Mice movements are often fast changing, therefore SORT often produces new identities for the same mouse.
 
-
+![](SORT_re.PNG)
 
 ###### Home Cage Tracking
 Taking advantage of known number of mice detected in the previous frames and that a new mouse can only enter/exist at a designated location (Entrance), we can therfore reassign new false positive identities to real identities generated. Here, a centroid tracking algorithm based on Euclidean distances along with the Hungarian algorithm  employed. 
@@ -64,5 +64,14 @@ no match would be made
 - During the correction, the original (incorrect) RFID-SORT ID match is removed and replaced with the correct RFID match until a point where the mice had a possible occulusion with other mice based on a defined IOU threshold. In the case of the home-cage, the threshold distance to the entrance would also be considered as a point of occulusion.
 
 ![](Correction_mechanism.png)
+##### Tracking in Different Environments and Rodent Strains
+##### OpenField
+![](open_field.PNG)
+##### White Mice in 3 Chamber Arena (White Background) 
+![](3chamber.PNG)
+##### Custom Home Cage Tracking
+![](Home_cage_tracks.PNG)
 
-[Link](https://youtube.com/playlist?list=PLmcjDqLt_Xk6AAlll3ztvgNI9P3yQxPc2) to sample videos 
+
+For full videos, please access the following [Link](https://youtube.com/playlist?list=PLmcjDqLt_Xk6AAlll3ztvgNI9P3yQxPc2) on youtube.
+
