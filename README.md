@@ -5,7 +5,7 @@
 
 #### Analytical Codes and Modules
 ##### An Overview of the Tracking Process
-![](Track_flow.png)
+![](imgs/Track_flow.png)
 
 ##### Yolov4-tensorflow2 
 yolov3-tf2:forked from [the AI guys GitHub Page](https://github.com/theAIGuysCode/tensorflow-yolov4-tflite)
@@ -27,13 +27,13 @@ rudimentary data association and state estimation techniques.
 - Maintains tracking throughout occlusions and clustering
 - Also used to generated Kalmen filter predictions of mice locations when occuluded/clustered
 
-![](kalmen_predic.png)
+![](imgs/kalmen_predic.png)
 
 ###### SORT Track Identity Reassociation: A Euclidean Distance Method
 SORT was orignally designed for tracking objects moving in and out of frames at relatively uniform speed.
 Mice movements are often fast changing, therefore SORT often produces new identities for the same mouse.
 
-![](SORT_re.PNG)
+![](imgs/SORT_re.PNG)
 
 ###### Home Cage Tracking
 Taking advantage of known number of mice detected in the previous frames and that a new mouse can only enter/exist at a designated location (Entrance), we can therfore reassign new false positive identities to real identities generated. Here, a centroid tracking algorithm based on Euclidean distances along with the Hungarian algorithm  employed. 
@@ -49,12 +49,12 @@ A tutorial of centroid tracking can be found
 Customed writted script for RFID reading to SORT ID association
 - When a tag is read, the closest detected mice (linear distance) with the the higest IOU with the reader is matched
 
-  ![](match_example.png)
+  ![](imgs/match_example.png)
 
 - To ensure a clean read and RFID match, if there is 2 or more mice within a certain distance or have a certain IOU with the reader,
 no match would be made
 
-  ![](failed_match_example.png)
+  ![](imgs/failed_match_example.png)
 
 - The SORT ID that is matched will be associated with the tag throughout the video
 
@@ -63,15 +63,15 @@ no match would be made
 - If the tag read does not match the SORT ID associated, the a correction mechanism occurs.
 - During the correction, the original (incorrect) RFID-SORT ID match is removed and replaced with the correct RFID match until a point where the mice had a possible occulusion with other mice based on a defined IOU threshold. In the case of the home-cage, the threshold distance to the entrance would also be considered as a point of occulusion.
 
-![](Correction_mechanism.png)
+![](imgs/Correction_mechanism.png)
 ##### Tracking in Different Environments and Rodent Strains
 Increase arena size and RFID readers connected to track more mice. The limit is the sky!
 ##### OpenField
-![](open_field.PNG)
+![](imgs/open_field.PNG)
 ##### White Mice in 3 Chamber Arena (White Background) 
-![](3chamber.PNG)
+![](imgs/3chamber.PNG)
 ##### Custom Home Cage Tracking
-![](Home_cage_tracks.PNG)
+![](imgs/Home_cage_tracks.PNG)
 
 
 For full videos, please access the following [Link](https://youtube.com/playlist?list=PLmcjDqLt_Xk6AAlll3ztvgNI9P3yQxPc2) on youtube.
