@@ -14,7 +14,7 @@ flags.DEFINE_string('framework', 'tf', 'define what framework do you want to con
 flags.DEFINE_string('model', 'yolov4', 'yolov3 or yolov4')
 
 def save_tf():
-  STRIDES, ANCHORS, NUM_CLASS, XYSCALE = utils.load_config(FLAGS)
+  STRIDES, ANCHORS, NUM_CLASS, XYSCALE = utils.load_config()#FLAGS)
 
   input_layer = tf.keras.layers.Input([FLAGS.input_size, FLAGS.input_size, 3])
   feature_maps = YOLO(input_layer, NUM_CLASS, FLAGS.model, FLAGS.tiny)

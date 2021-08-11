@@ -3,7 +3,7 @@ import numpy as np
 import math
 from tqdm import tqdm
 import itertools
-from track_utils import *
+from psyco_utils.track_utils import *
 from scipy.optimize import linear_sum_assignment
 from sort import Sort
 import sys
