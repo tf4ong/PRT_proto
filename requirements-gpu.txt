@@ -1,4 +1,5 @@
 tensorflow-gpu==2.3.0rc0
+jupyter
 opencv-python
 scikit-image
 filterpy

@@ -77,7 +77,7 @@ def yolov4_detect(folder,size,weightspath,iou,score,blur_filter_k_size,motion_ar
     session = InteractiveSession(config=config)
     STRIDES, ANCHORS, NUM_CLASS, XYSCALE = utils.load_config()
     input_size = size
-    videopath = folder+'/raw.aviss'
+    videopath = folder+'/raw.avi'
     print(f'Starting to yolov4 and motion detection process on  {videopath}')
     saved_model_loaded = tf.saved_model.load(weightspath, tags=[tag_constants.SERVING])
     infer = saved_model_loaded.signatures['serving_default']
