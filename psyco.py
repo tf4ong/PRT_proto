@@ -5,7 +5,7 @@ import psyco_utils.trajectory_analysis_utils as ta
 import sys
 from psyco_utils.track_utils import *
 import itertools
-from generate_vid import generate_RFID_video,create_validation_Video
+from psyco_utils.generate_vid import generate_RFID_video,create_validation_Video
 from psyco_utils.detect_utils import yolov4_detect
 from collections import ChainMap
 

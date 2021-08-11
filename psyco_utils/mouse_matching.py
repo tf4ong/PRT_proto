@@ -4,7 +4,7 @@ import math
 from tqdm import tqdm
 import itertools
 from psyco_utils.track_utils import *
-from scipy.optimize import linear_sum_assignment
+from psyco_utils.scipy.optimize import linear_sum_assignment
 from sort import Sort
 import sys
 from itertools import chain
