@@ -22,7 +22,7 @@ def RFID_readout(pathin,ent_reader,time_thresh):
         1.pathin: path of the rfid files ( data_all.csv and text.csv)
         2. ent_entrance reader number
     """
-    df1=pd.read_csv(f'{pathin}/text.csv')
+    df1=pd.read_csv(f'{pathin}/RFID_reads.csv')
     df2=pd.read_csv(f'{pathin}/RFID_data_all.csv',index_col=False)
     df2.Time=pd.to_datetime(df2['Time'],format="%Y-%m-%d_%H:%M:%S.%f")
     df1.Timestamp=pd.to_datetime(df1['Timestamp'],format="%Y-%m-%d %H:%M:%S.%f")

@@ -1,6 +1,6 @@
 tensorflow-gpu==2.3.0rc0
 jupyter
-opencv-python
+opencv-python==4.1.1.26
 scikit-image
 filterpy
 pandas
