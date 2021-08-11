@@ -84,17 +84,6 @@ class PSYCO:
                                                    self.RFID_coords,self.config_dict_analysis['entrance_distance'],
                                                    self.config_dict_analysis['correct_iou'])
         self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
-        path='/media/tony/data/data/test_tracks/vertification/older_coords/vertifications/dup_erros_new.csv'
-        if not os.path.exists(path):
-            with open(path,'w') as file:
-                file.write('file\n')
-        for i in range(len(self.df_tracks_out)): 
-            stracks=[z[:4] for z in self.df_tracks_out.iloc[i].RFID_tracks]
-            r_tracks=[z for z in self.df_tracks_out.iloc[i].RFID_tracks]
-            stacks=[stracks.count(c) for c in stracks if stracks.count(c)>1]
-            if any(stacks) or (len(set([f[4] for f in r_tracks])) != len([f[4] for f in r_tracks])):
-                with open(path,'a') as file:
-                    file.write(self.path+'\n')
         self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
         if report_coverage:
             coverage=mm.coverage(self.df_tracks_out)
