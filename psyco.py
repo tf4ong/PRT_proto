@@ -42,16 +42,19 @@ class PSYCO:
                       write_vid)
         return
     def load_RFID(self):
-        try:
-            self.df_RFID=mm.RFID_readout(self.path,self.entrance_RFID,
-                                         self.config_dict_analysis['entrance_time_thres'])
-        except Exception as e:
-            print(e)
-            print('Confirm correct folder path')
-            sys.exit(0)
-        n_RFID_readings=len(self.df_RFID[self.df_RFID['RFID_readings'].notnull()])
-        duration=self.df_RFID.iloc[-1]['Time']-self.df_RFID.iloc[0]['Time']
-        print(f'{n_RFID_readings} Tags were read in {duration} seconds')
+        if len(self.tags)!=1:
+            try:
+                self.df_RFID=mm.RFID_readout(self.path,self.entrance_RFID,
+                                             self.config_dict_analysis['entrance_time_thres'])
+            except Exception as e:
+                print(e)
+                print('Confirm correct folder path')
+                sys.exit(0)
+            n_RFID_readings=len(self.df_RFID[self.df_RFID['RFID_readings'].notnull()])
+            duration=self.df_RFID.iloc[-1]['Time']-self.df_RFID.iloc[0]['Time']
+            print(f'{n_RFID_readings} Tags were read in {duration} seconds')
+        else:
+            print('Only one mouse being tracked, skipping process')
     def load_dets(self):
         self.df_tracks=mm.read_yolotracks(self.path,self.RFID_coords,self.entrance_RFID,
                                           self.config_dict_analysis['entrance_distance'],self.df_RFID,
@@ -73,27 +76,32 @@ class PSYCO:
         self.df_tracks=mm.Combine_RFIDreads(self.df_tracks,self.df_RFID)
         return self.df_tracks
     def RFID_match(self,report_coverage=True,save_csv=True):
-        self.df_tracks_out,self.validation_frames=mm.RFID_matching(self.df_tracks,self.tags,self.entrance_RFID,
-                                                                   self.RFID_coords,self.config_dict_analysis['entr_frames'],
-                                                                   self.config_dict_analysis['correct_iou'],
-                                                                   self.config_dict_analysis['reader_thres'],
-                                                                   self.config_dict_analysis['RFID_dist'],
-                                                                   self.config_dict_analysis['entrance_distance'],
-                                                                   self.path)
-        self.df_tracks_out=mm.match_left_over_tag(self.df_tracks_out,self.tags,self.entrance_RFID,
-                                                   self.RFID_coords,self.config_dict_analysis['entrance_distance'],
-                                                   self.config_dict_analysis['correct_iou'])
-        self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
-        self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
-        if report_coverage:
-            coverage=mm.coverage(self.df_tracks_out)
-        self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,0)
-        self.df_tracks_out=self.df_tracks_out[['frame','Time','sort_tracks','RFID_tracks','ious_interaction','Interactions',
-                                               'motion','motion_roi','RFID_readings','Correction','RFID_matched','Matching_details']]
-        if save_csv:
+        if len(self.tags)!=1:
+            self.df_tracks_out,self.validation_frames=mm.RFID_matching(self.df_tracks,self.tags,self.entrance_RFID,
+                                                                       self.RFID_coords,self.config_dict_analysis['entr_frames'],
+                                                                       self.config_dict_analysis['correct_iou'],
+                                                                       self.config_dict_analysis['reader_thres'],
+                                                                       self.config_dict_analysis['RFID_dist'],
+                                                                       self.config_dict_analysis['entrance_distance'],
+                                                                       self.path)
+            self.df_tracks_out=mm.match_left_over_tag(self.df_tracks_out,self.tags,self.entrance_RFID,
+                                                       self.RFID_coords,self.config_dict_analysis['entrance_distance'],
+                                                       self.config_dict_analysis['correct_iou'])
+            self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
             self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
-            print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
-        return self.df_tracks_out,self.validation_frames,coverage
+        else:
+            self.validation_frames=[]
+            self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
+            self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
+            if report_coverage:
+                coverage=mm.coverage(self.df_tracks_out)
+            self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,0)
+            self.df_tracks_out=self.df_tracks_out[['frame','Time','sort_tracks','RFID_tracks','ious_interaction','Interactions',
+                                                   'motion','motion_roi','RFID_readings','Correction','RFID_matched','Matching_details']]
+            if save_csv:
+                self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
+                print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
+            return self.df_tracks_out,self.validation_frames,coverage
     def find_activte_mice(self,save_csv=True):
         self.df_tracks_out['Activity']=[mm.get_tracked_activity(motion_status,motion_roi,RFID_tracks,self.tags) for motion_status,
                                         motion_roi,RFID_tracks in zip(self.df_tracks_out['motion'].values,
