@@ -5,7 +5,7 @@ from tqdm import tqdm
 import itertools
 from psyco_utils.track_utils import *
 from scipy.optimize import linear_sum_assignment
-from sort import Sort
+from psyco_utils.sort import Sort
 import sys
 from itertools import chain
 pd.options.mode.chained_assignment = None
@@ -15,13 +15,15 @@ pd.options.mode.chained_assignment = None
 Pandas based processing functionsimport multiprocessing 
 """
 
-def RFID_readout(pathin,ent_reader,time_thresh):
+def RFID_readout(pathin,config_dict_analysis):
     """
     Loads to RFID csv file in to pandas dataframe[mm.rfid2bpts
     df_RFID_cage=rm.RFID_readout(FLAGS.data,0)# change for entering specific reader as entrance reader
         1.pathin: path of the rfid files ( data_all.csv and text.csv)
         2. ent_entrance reader number
     """
+    ent_reader=config_dict_analysis['entrance_reader']
+    time_thresh=config_dict_analysis['entrance_time_thres']
     df1=pd.read_csv(f'{pathin}/RFID_reads.csv')
     df2=pd.read_csv(f'{pathin}/RFID_data_all.csv',index_col=False)
     df2.Time=pd.to_datetime(df2['Time'],format="%Y-%m-%d_%H:%M:%S.%f")
@@ -102,6 +104,10 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
     ent_thres=config_dict_analysis['entrance_distance']
     interaction_thres=config_dict_tracking['interaction_thres']
     ent_time=config_dict_analysis['entrance_time_thres']
+    max_age=config_dict_tracking['max_age']
+    min_hits=config_dict_tracking['min_hits']
+    iou_threshold=config_dict_tracking['iou_threshold']
+    resolution=config_dict_tracking['resolution']
     columns=['frame','bboxes','motion_roi']
     dics={i: eval for i in columns}
     df_tracks=pd.read_csv(pathin+'/'+'yolo_dets.csv',converters=dics)
@@ -111,7 +117,8 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
     df_tracks['bboxes']=[mouse_limiter(bbs,n_mice) for bbs in df_tracks['bboxes'].values]
     if np.all(df_tracks.frame==0):
         df_tracks['frame']=[i+1 for i in range(len(df_tracks))]
-    sort_tracks,unmatched_predicts=sort_tracks_generate(df_tracks['bboxes'].values,resolution,area_thresh)
+    sort_tracks,unmatched_predicts=sort_tracks_generate(df_tracks['bboxes'].values,resolution,area_thresh,
+                                                        max_age,min_hits,iou_threshold)
     df_tracks['unmatched_predicts']=unmatched_predicts
     df_tracks['unmatched_predicts']=[float_int(x) for x in df_tracks['unmatched_predicts'].values]
     df_tracks['sort_tracks']=sort_tracks
@@ -431,7 +438,7 @@ def Combine_RFIDreads(df,df_RFID_cage):
 
 
 def RFID_matching(df_tracks,tags,config_dict_analysis,folder_path):
-    entrance_reader=config_dict_analysis['entrance_distance']
+    entrance_reader=config_dict_analysis['entrance_reader']
     RFID_coords=config_dict_analysis['RFID_readers']
     entr_frames=config_dict_analysis['entr_frames']
     correct_iou=config_dict_analysis['correct_iou']
@@ -1071,6 +1078,7 @@ def match_left_over_tag(df,tags,config_dict_analysis):
     ent_thres=config_dict_analysis['entrance_distance']
     correct_iou=config_dict_analysis['correct_iou']
     #further optimization
+    #break into consectuive sections? 
     frames_done=[]
     loop_count=1
     while True:
