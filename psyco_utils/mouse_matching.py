@@ -1083,9 +1083,10 @@ def match_left_over_tag(df,tags,config_dict_analysis):
     loop_count=1
     while True:
         index_list=get_left_over_tag_indexes(df,tags)
+        index_list_refined=refine_frame_left_list(index_list,df)
         print(f'Starting Left over Tag match loop {loop_count}')
-        pbar=tqdm(total=len(index_list),position=0,leave=True)
-        for i in index_list:
+        pbar=tqdm(total=len(index_list_refined),position=0,leave=True)
+        for i in index_list_refined:
             RFID_tracked=[strack[4] for strack in df.iloc[i].RFID_tracks]
             if len(RFID_tracked)<len(tags):
                 tag_left=list(set(tags)-set(RFID_tracked))[0]
@@ -1318,8 +1319,23 @@ def get_iou_list_b(df,frame,sid, correct_iou, limit=None):
     return list_id_marked
 
 
+def sid_left_list(frame_list,df):
+    return [df.iloc[frame].lost_tracks[0][4] for frame in frame_list ]
 
 
+def refine_frame_left_list(index_list,df):
+    from operator import itemgetter
+    from itertools import groupby
+    groups=[list(map(itemgetter(1), g)) for k, g in groupby(enumerate(index_list), lambda x: x[0]-x[1])]
+    sid_list_all2=[sid_left_list(frame_list, df) for frame_list in groups]
+    sid_list_2look=[k for k,g in enumerate(sid_list_all2) if len(set(g)) != 1]
+    frames=[f_list[0] for k,f_list in enumerate(groups) if k not in sid_list_2look]
+    if len(sid_list_2look) !=0:
+        for i in sid_list_2look:
+            inds=[sid_list_all2[i].index(z) for z in set(sid_list_all2[i])]
+            frames+=[groups[i][ind] for ind in inds]
+        frames=sorted(frames)
+    return frames
 
 
 
