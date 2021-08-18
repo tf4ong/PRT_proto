@@ -24,22 +24,17 @@ class PSYCO:
         self.config_path=config_path
         self.config_dict_analysis=analysis_config_loader(config_path)
         self.config_dic_detect=detect_config_loader(config_path)
+        self.config_dic_track=tracking_config_loader(config_path)
+        self.config_dic_dlc=dlc_config_loader(config_path)
         if self.config_dict_analysis['entrance_reader'][0]: 
             self.entrance_RFID=self.config_dict_analysis['entrance_reader'][1]
         else: 
             self.entrance_RFID=None
-        self.RFID_coords=self.config_dict_analysis['RFID_readers']
+            
+            
+        #self.RFID_coords=self.config_dict_analysis['RFID_readers']
     def detect_mice(self,write_vid=False):
-        yolov4_detect(self.path,self.config_dic_detect['size'],
-                      self.config_dic_detect['weightpath'][0],
-                      self.config_dic_detect['iou'],
-                      self.config_dic_detect['score'],
-                      self.config_dic_detect['blur_filter_k_size'],
-                      self.config_dic_detect['motion_area_thresh'],
-                      self.config_dic_detect['intensity_thres'],
-                      self.config_dic_detect['motion_interpolation'],
-                      self.config_dic_detect['len_motion_thres'],
-                      write_vid)
+        yolov4_detect(self.path,self.config_dic_detect,write_vid)
         return
     def load_RFID(self):
         if len(self.tags)!=1:
@@ -56,37 +51,25 @@ class PSYCO:
         else:
             print('Only one mouse being tracked, skipping process')
     def load_dets(self):
-        self.df_tracks=mm.read_yolotracks(self.path,self.RFID_coords,self.entrance_RFID,
-                                          self.config_dict_analysis['entrance_distance'],self.df_RFID,
-                                          self.config_dict_analysis['interaction_thres'],self.config_dict_analysis['entrance_time_thres'],
-                                          len(self.tags),self.config_dict_analysis['resolution'])
+        self.df_tracks=mm.read_yolotracks(self.path,self.config_dict_analysis,self.config_dict_tracking,
+                                          self.df_RFID,len(self.tags))
         if self.entrance_RFID is None:
             self.df_tracks=mm.reconnect_tracks_ofa(self.df_tracks,len(self.tags))
             pass
         else:
             reconnect_ids=mm.get_reconnects(self.df_tracks)
-            self.df_tracks,id2remove=mm.spontanuous_bb_remover(self.config_dict_analysis['iou_min_sbb_checker'],
-                                                                       reconnect_ids,self.df_tracks,self.RFID_coords,
-                                                                       self.config_dict_analysis['sbb_frame_thres'],self.entrance_RFID,
-                                                                       self.config_dict_analysis['entrance_distance'])       
+            self.df_tracks,id2remove=mm.spontanuous_bb_remover(reconnect_ids,self.df_tracks,
+                                                               self.config_dict_analysis,self.config_dict_tracking)       
             reconnect_ids=mm.reconnect_id_update(reconnect_ids,id2remove)
-            trac_dict_leap=mm.reconnect_leap(reconnect_ids,self.df_tracks,self.config_dict_analysis['leap_dist'])
-            self.df_tracks=mm.replace_track_leap_df(trac_dict_leap,self.df_tracks,self.RFID_coords,
-                                                    self.entrance_RFID,self.config_dict_analysis['entrance_distance'])
+            trac_dict_leap=mm.reconnect_leap(reconnect_ids,self.df_tracks,self.config_dict_tracking['leap_dist'])
+            self.df_tracks=mm.replace_track_leap_df(trac_dict_leap,self.df_tracks,self.config_dict_analysis)
         self.df_tracks=mm.Combine_RFIDreads(self.df_tracks,self.df_RFID)
         return self.df_tracks
     def RFID_match(self,report_coverage=True,save_csv=True):
         if len(self.tags)!=1:
-            self.df_tracks_out,self.validation_frames=mm.RFID_matching(self.df_tracks,self.tags,self.entrance_RFID,
-                                                                       self.RFID_coords,self.config_dict_analysis['entr_frames'],
-                                                                       self.config_dict_analysis['correct_iou'],
-                                                                       self.config_dict_analysis['reader_thres'],
-                                                                       self.config_dict_analysis['RFID_dist'],
-                                                                       self.config_dict_analysis['entrance_distance'],
+            self.df_tracks_out,self.validation_frames=mm.RFID_matching(self.df_tracks,self.tags,self.config_dict_analysis,
                                                                        self.path)
-            self.df_tracks_out=mm.match_left_over_tag(self.df_tracks_out,self.tags,self.entrance_RFID,
-                                                       self.RFID_coords,self.config_dict_analysis['entrance_distance'],
-                                                       self.config_dict_analysis['correct_iou'])
+            self.df_tracks_out=mm.match_left_over_tag(self.df_tracks_out,self.tags,self.config_dict_analysis)
             self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
             self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
         else:
@@ -122,7 +105,7 @@ class PSYCO:
         df_bpts=df_bpts.drop(columns=self.config_dict_analysis['dbpt'])
         columns=['bboxes']
         self.df_tracks_out=pd.merge( self.df_tracks_out,df_bpts, on='frame')
-        dbpts=[mm.rfid2bpts(bpts,RFIDs,self.config_dict_analysis['dbpt_box_slack'],bpt2look=self.config_dict_analysis['dbpt_distance_compute']) 
+        dbpts=[mm.rfid2bpts(bpts,RFIDs,self.config_dict_dlc['dbpt_box_slack'],bpt2look=self.config_dict_dlc['dbpt_distance_compute']) 
                for bpts,RFIDs in zip(self.df_tracks_out['bpts'].values,self.df_tracks_out['RFID_tracks'].values)]
         self.df_tracks_out['dbpt2look']=[i[0] for i in dbpts]
         self.df_tracks_out['undetemined_bpt']=[i[1] for i in dbpts]
@@ -133,7 +116,7 @@ class PSYCO:
                 bpts=[v for v in y if v[3]==i]
                 exec(f'list_bpt_{str(i)}.append(bpts)')
             self.df_tracks_out[f'{i}_bpts']=eval(f'list_bpt_{str(i)}')
-        rows=self.df_tracks_out.apply(lambda x:mm.bpt_distance_compute(x,self.tags,self.config_dict_analysis['dbpt_int']),axis=1)
+        rows=self.df_tracks_out.apply(lambda x:mm.bpt_distance_compute(x,self.tags,self.config_dict_dlc['dbpt_int']),axis=1)
         new_cols=[str(list(i)[0]) + '_'+str(list(i)[1]) for i in itertools.combinations(self.tags, 2)]
         for name,idx in zip(new_cols,range(len(new_cols))):
             self.df_tracks_out[name]=[dists[idx] for dists in rows]
@@ -158,7 +141,7 @@ class PSYCO:
 
     def generate_labeled_video(self,dlc_bpts=False,plot_motion=False,out_folder=None):
         generate_RFID_video(self.path,self.df_RFID,self.tags,self.df_tracks_out,\
-                               self.validation_frames,self.RFID_coords,self.entrance_RFID,dlc_bpts,plot_motion,out_folder=out_folder)
+                               self.validation_frames,self.config_dict_analysis,self.entrance_RFID,dlc_bpts,plot_motion,out_folder=out_folder)
         
     def generate_validation_video(self,out_folder='None'):
         create_validation_Video(self.path,self.config_path,output=None)

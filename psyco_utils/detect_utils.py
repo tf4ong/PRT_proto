@@ -70,8 +70,16 @@ def pure_motion_detect(folder,blur_filter_k_size,motion_area_thresh,
         
 #consecutive_motion_detection(folder,gap_fill=motion_interpolation,frame_thres=len_motion_thres)
     
-def yolov4_detect(folder,size,weightspath,iou,score,blur_filter_k_size,motion_area_thresh,
-                  intensity_thres,motion_interpolation,len_motion_thres,write_vid=False):
+def yolov4_detect(folder,config_dic_detect,write_vid=False):
+    size=config_dic_detect['size']
+    weightspath=config_dic_detect['weightpath'][0]
+    iou=config_dic_detect['iou']
+    score=config_dic_detect['score']
+    blur_filter_k_size=config_dic_detect['blur_filter_k_size']
+    motion_area_thresh=config_dic_detect['motion_area_thresh']
+    intensity_thres=config_dic_detect['motion_area_thresh']
+    motion_interpolation=config_dic_detect['motion_interpolation']
+    len_motion_thres=config_dic_detect['len_motion_thres']
     config = ConfigProto()
     config.gpu_options.allow_growth = True
     session = InteractiveSession(config=config)

@@ -59,10 +59,10 @@ def RFID_readout(pathin,ent_reader,time_thresh):
     df2['frame']=range(len(df2))
     return df2
 
-def sort_tracks_generate(bboxes,resolution,area_thres):
+def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_threshold):
     id_tracks=[]
     unmatched_predicts=[]
-    mot_tracker=Sort()
+    mot_tracker=Sort(max_age,min_hits,iou_threshold)
     mot_tracker.reset_count()   
     print('Assigning Sort ID to bboxes')
     pbar=tqdm(total=len(bboxes),position=0,leave=True)
@@ -96,7 +96,12 @@ def mouse_limiter(bb,n_mice):
     
 
 
-def read_yolotracks(pathin,RFID_coords,entrance_reader,ent_thres,df_RFID,interaction_thres,ent_time,n_mice,resolution):
+def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_mice):
+    RFID_coords=config_dict_analysis['RFID_readers']
+    entrance_reader=config_dict_analysis['entrance_reader']
+    ent_thres=config_dict_analysis['entrance_distance']
+    interaction_thres=config_dict_tracking['interaction_thres']
+    ent_time=config_dict_analysis['entrance_time_thres']
     columns=['frame','bboxes','motion_roi']
     dics={i: eval for i in columns}
     df_tracks=pd.read_csv(pathin+'/'+'yolo_dets.csv',converters=dics)
@@ -212,29 +217,7 @@ def track_exist_af(sort_id,frame,df):
         return False
     else:
         return True
-"""
-def delete_mutilbaled(x):
-    list2del=[]
-    index2check=[i[:4] for i in x]
-    for i in index2check:
-        temp_list=[ind for ind, value in enumerate(index2check) if value == i]
-        if len(temp_list)>1:
-            for inde in temp_list:
-                list2del.append(inde)
-    final_list=[value for ind,value in enumerate(x) if ind not in list2del] 
-    return final_list
 
-def delete_mutilbaled2(x):
-    list2del=[]
-    index2check=[i[4] for i in x]
-    for i in index2check:
-        temp_list=[ind for ind, value in enumerate(index2check) if value == i]
-        if len(temp_list)>1:
-            for inde in temp_list:
-                list2del.append(inde)
-    final_list=[value for ind,value in enumerate(x) if ind not in list2del] 
-    return final_list
-"""
 
 def replace_track_leap(frame,sort_id_old,sort_id_new,df_tracks):
     ind_list=[ind for ind, sids in enumerate(df_tracks.iloc[frame:]['track_id'].values) if sort_id_new in sids]
@@ -277,7 +260,10 @@ def reconnect_leap(reconnect_ids,df_tracks,max_distance):
                         pass
     return track_dict
 
-def replace_track_leap_df(track_dict,df_tracks,RFID_coords,entrance_reader,ent_thres):
+def replace_track_leap_df(track_dict,df_tracks,config_dict_analysis):
+    RFID_coords=config_dict_analysis['RFID_readers']
+    entrance_reader=config_dict_analysis['entrance_reader']
+    ent_thres=config_dict_analysis['entrance_distance']
     for i,v in track_dict.items():
         df_tracks=replace_track_leap(v[0],v[1],i,df_tracks)
     df_tracks['track_id']=[get_ids(x) for x in df_tracks['sort_tracks'].values]
@@ -323,11 +309,12 @@ def interaction2dic(df_tracks_out,tags,slack):
     return df_tracks_out
 
 
-
-
-
-
-def spontanuous_bb_remover(iou_min_bb,reconnect_ids,df_tracks,RFID_coords,fpbb_thres,entrance_reader,ent_thres):
+def spontanuous_bb_remover(reconnect_ids,df_tracks,config_dict_analysis,config_dict_tracking):
+    iou_min_bb=config_dict_tracking['iou_min_sbb_checker']
+    RFID_coords=config_dict_analysis['RFID_readers']
+    fpbb_thres=config_dict_tracking['sbb_frame_thres']
+    entrance_reader=config_dict_analysis['entrance_reader']
+    ent_thres=config_dict_analysis['entrance_distance']
     id2remove=[]
     for sort_id, frame in reconnect_ids.items():
         iou_dic={i:v  for i,v in df_tracks.iloc[frame]['ious'].items() if sort_id in i}
@@ -380,21 +367,7 @@ def spontanuous_bb_remover(iou_min_bb,reconnect_ids,df_tracks,RFID_coords,fpbb_t
 
 
 
-def distance_box_RFID(RFID,bbox,RFID_coords):
-    '''
-    Gets the centroid distance between RFID reader of interest and bbox
-    '''
-    bbox_1_centroid=bbox_to_centroid(RFID_coords[int(RFID)])
-    bbox_2_centroid=bbox_to_centroid(bbox)
-    return Distance(bbox_1_centroid,bbox_2_centroid)
 
-
-def in_cage_tracks2(track,RFID_coords,ent_thres,entrance_reader):
-    if track !=[]:
-        cage_tracks=[i for i in track if distance_box_RFID(entrance_reader,i,RFID_coords)>ent_thres]
-        return cage_tracks
-    else:
-        return []
 
 def coverage(df):#,ent_thres,entrance_reader,RFID_coords):
     a=sum([len(i) for i in df.RFID_tracks])
@@ -403,13 +376,7 @@ def coverage(df):#,ent_thres,entrance_reader,RFID_coords):
     print(cov)
     return cov
 
-'''
-Gets the distance of the bb to RFIDs
-'''
-def distance_to_entrance(bbox2,RFID_coords,entrance_reader):
-    bbox_1_centroid=bbox_to_centroid(RFID_coords[entrance_reader])
-    bbox_2_centroid=bbox_to_centroid(bbox2)
-    return Distance(bbox_1_centroid,bbox_2_centroid)
+
 '''
 Removes duplicate loggins in the dataframe
 '''
@@ -463,7 +430,14 @@ def Combine_RFIDreads(df,df_RFID_cage):
 #write function
 
 
-def RFID_matching(df_tracks,tags,entrance_reader,RFID_coords,entr_frames,correct_iou,reader_thresh,RFID_dist,ent_thres,folder_path):
+def RFID_matching(df_tracks,tags,config_dict_analysis,folder_path):
+    entrance_reader=config_dict_analysis['entrance_distance']
+    RFID_coords=config_dict_analysis['RFID_readers']
+    entr_frames=config_dict_analysis['entr_frames']
+    correct_iou=config_dict_analysis['correct_iou']
+    reader_thresh=config_dict_analysis['reader_thres']
+    RFID_dist=config_dict_analysis['RFID_dist']
+    ent_thres=config_dict_analysis['entrance_distance']
     df_tracks['sort_tracks']=[sorted(tracks,key= lambda x: x[4]) for tracks in df_tracks['sort_tracks']]
     validation_frames=[f for f in df_tracks[df_tracks.RFID_readings.notnull()].index]
     validation_frames.sort()
@@ -1091,14 +1065,16 @@ def RFID_SID_match(sort_id,match_frames,stop_frame,df_tracks,
     return df_tracks
 
 
-def match_left_over_tag(df,tags,entrance_reader,RFID_coords,ent_thres,correct_iou):
-    #can optimize for speed 
+def match_left_over_tag(df,tags,config_dict_analysis):
+    entrance_reader=config_dict_analysis['entrance_reader']
+    RFID_coords=config_dict_analysis['RFID_readers']
+    ent_thres=config_dict_analysis['entrance_distance']
+    correct_iou=config_dict_analysis['correct_iou']
+    #further optimization
     frames_done=[]
     loop_count=1
     while True:
         index_list=get_left_over_tag_indexes(df,tags)
-        #print(len(index_list))
-        #print('loooook')
         print(f'Starting Left over Tag match loop {loop_count}')
         pbar=tqdm(total=len(index_list),position=0,leave=True)
         for i in index_list:

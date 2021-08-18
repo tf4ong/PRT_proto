@@ -96,6 +96,24 @@ def reconnect_id_update(reconnect_ids,id2remove):
         del reconnect_ids[i]
     return reconnect_ids
 
+def distance_box_RFID(RFID,bbox,RFID_coords):
+    '''
+    Gets the centroid distance between RFID reader of interest and bbox
+    '''
+    bbox_1_centroid=bbox_to_centroid(RFID_coords[int(RFID)])
+    bbox_2_centroid=bbox_to_centroid(bbox)
+    return Distance(bbox_1_centroid,bbox_2_centroid)
+
+'''
+Gets the distance of the bb to RFIDs
+'''
+def distance_to_entrance(bbox2,RFID_coords,entrance_reader):
+    bbox_1_centroid=bbox_to_centroid(RFID_coords[entrance_reader])
+    bbox_2_centroid=bbox_to_centroid(bbox2)
+    return Distance(bbox_1_centroid,bbox_2_centroid)
+
+
+
 def apply_slack(listbb,slack):
     for bbi in range(len(listbb)):
         listbb[bbi]=[listbb[bbi][0]+slack,listbb[bbi][1]+slack,listbb[bbi][2]+slack,listbb[bbi][3]+slack,listbb[bbi][4]]
@@ -130,31 +148,52 @@ def detect_config_loader(path):
     return config_dic
     
 
+
+def tracking_config_loader(path):
+    config = ConfigParser()
+    config.read(path)
+    cfg = 'Tracking'
+    config_dic={}
+    config_dic['max_age']=int(config.get(cfg, 'max_age'))
+    config_dic['min_hits']=int(config.get(cfg, 'max_age'))
+    config_dic['iou_threshold']= float(config.get(cfg, 'iou_threshold'))
+    config_dic['interaction_thres']= float(config.get(cfg, 'interaction_thres'))
+    config_dic['iou_min_sbb_checker']= float(config.get(cfg, 'iou_min_sbb_checker'))
+    config_dic['sbb_frame_thres']= int(config.get(cfg, 'sbb_frame_thres'))
+    config_dic['leap_distance']= int(config.get(cfg, 'sbb_frame_thres'))
+    config_dic['resolution']=list(map(int, config.get(cfg, 'resolution').split(',')))
+    return config_dic
+    
 def analysis_config_loader(path):
     config = ConfigParser()
     config.read(path)
     cfg = 'NMT_RFID_Matching'
     config_dic={}
-    config_dic['resolution']=list(map(int, config.get(cfg, 'resolution').split(',')))
     config_dic['RFID_readers']=eval(str(config.get(cfg, 'RFID_readers')))
     config_dic['entrance_time_thres']=float(config.get(cfg, 'entrance_time_thresh'))
     config_dic['entrance_distance']=float(config.get(cfg, 'entrance_distance'))
-    config_dic['iou_min_sbb_checker']=float(config.get(cfg, 'iou_min_sbb_checker'))
-    config_dic['sbb_frame_thres']=int(config.get(cfg, 'sbb_frame_thres'))
-    config_dic['leap_dist']=float(config.get(cfg, 'leap_distance'))
     config_dic['correct_iou']= float(config.get(cfg, 'correct_iou'))
     config_dic['RFID_dist']= float(config.get(cfg, 'RFID_dist'))
     config_dic['entr_frames']=int(config.get(cfg, 'entr_frames'))
     config_dic['reader_thres']= float(config.get(cfg, 'reader_thres'))
-    config_dic['dbpt']=str(config.get(cfg, 'dbpts')).split(',')
-    config_dic['dbpt_distance_compute']=str(config.get(cfg, 'dbpt_distance_compute')).split(',')
-    config_dic['dbpt_int']=str(config.get(cfg, 'dbpt_int')).split(',')
-    config_dic['dbpt_box_slack']=int(config.get(cfg, 'dbpt_box_slack'))
     config_dic['trac_interpolation']=int(config.get(cfg, 'trac_interpolation'))
-    config_dic['interaction_thres']= float(config.get(cfg, 'interaction_thres'))
     entrance_readers= str(config.get(cfg, 'entrance_reader')).split(',')
     entrance_readers[0]=eval(entrance_readers[0])
     entrance_readers[1]=int(entrance_readers[1])
     config_dic['entrance_reader']=entrance_readers
+    if config_dic['entrance_reader'][0]: 
+        config_dic['entrance_reader']=config_dic['entrance_reader'][1]
+    else: 
+        config_dic['entrance_reader']=None
     return config_dic
 
+def dlc_config_loader(path):
+    config = ConfigParser()
+    config.read(path)
+    cfg = 'DLC'
+    config_dic={}
+    config_dic['dbpt']=str(config.get(cfg, 'dbpts')).split(',')
+    config_dic['dbpt_distance_compute']=str(config.get(cfg, 'dbpt_distance_compute')).split(',')
+    config_dic['dbpt_int']=str(config.get(cfg, 'dbpt_int')).split(',')
+    config_dic['dbpt_box_slack']=int(config.get(cfg, 'dbpt_box_slack'))
+    return config_dic
