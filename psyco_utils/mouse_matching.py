@@ -1213,8 +1213,8 @@ def match_left_over_tag(df,tags,config_dict_analysis):
 def get_left_over_tag_indexes(df,tags):
     index_list=df[df.RFID_tracks.map(len)==len(tags)-1].index
     index_list=[z for z in index_list if len(df.iloc[z].track_id) ==len(tags)]
-    
     return index_list
+
 def get_iou_thresh_frame(list_iou_frames,sid,df_tracks,correct_iou):
     for frame in list_iou_frames:
         ious=[iou for inde, iou in df_tracks.iloc[frame]['ious'].items()

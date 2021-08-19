@@ -46,10 +46,13 @@ def location_compiler(tag,df,lim=5):
     df_tag.x2=round(df_tag.x2.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
     df_tag.y2=round(df_tag.y2.interpolate(method ='linear',limit_direction ='both', limit = lim))
     df_tag['frame']=df.frame.values
+    print(df_tag.columns)
+    df_tag=df_tag[['Timestamp','frame','Tracks','Centroid_X','Centroid_Y','Activity']]
     ds=np.split(df_tag,np.where(np.isnan(df_tag.Centroid_X))[0])
     ds=[t.drop(t.index[0]) for t in ds if len(t)>1]
     ds=[elist2nan(df) for df in ds]
     ds=[remove_pricdictions(df) for df in ds]
+    ds=[t.drop(columns=['Tracks']) for t in ds]
     return ds
 
 

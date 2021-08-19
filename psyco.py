@@ -94,16 +94,16 @@ class PSYCO:
         return self.df_tracks_out
     def load_dlc_bpts(self):
         print('Loading Deeplabcut body parts to PSYCO')
-        columns=['frame']+ self.config_dic_analysis['dbpt']
+        columns=['frame']+ self.config_dic_dlc['dbpt']
         dics={y: eval for y in columns}
         df_bpts=pd.read_csv(self.path+'/'+'dlc_bpts.csv',converters=dics)
-        df_dbpt_columns=[f'df_bpts["{i}"]' for i in self.config_dic_analysis['dbpt']]
+        df_dbpt_columns=[f'df_bpts["{i}"]' for i in self.config_dic_dlc['dbpt']]
         df_bpts['bpts']=eval('+'.join(df_dbpt_columns))
         df_bpts['frame']=range(len(df_bpts))
-        df_bpts=df_bpts.drop(columns=self.config_dic_analysis['dbpt'])
+        df_bpts=df_bpts.drop(columns=self.config_dic_dlc['dbpt'])
         columns=['bboxes']
         self.df_tracks_out=pd.merge( self.df_tracks_out,df_bpts, on='frame')
-        dbpts=[mm.rfid2bpts(bpts,RFIDs,self.config_dict_dlc['dbpt_box_slack'],bpt2look=self.config_dict_dlc['dbpt_distance_compute']) 
+        dbpts=[mm.rfid2bpts(bpts,RFIDs,self.config_dic_dlc['dbpt_box_slack'],bpt2look=self.config_dic_dlc['dbpt_distance_compute']) 
                for bpts,RFIDs in zip(self.df_tracks_out['bpts'].values,self.df_tracks_out['RFID_tracks'].values)]
         self.df_tracks_out['dbpt2look']=[i[0] for i in dbpts]
         self.df_tracks_out['undetemined_bpt']=[i[1] for i in dbpts]
@@ -114,7 +114,7 @@ class PSYCO:
                 bpts=[v for v in y if v[3]==i]
                 exec(f'list_bpt_{str(i)}.append(bpts)')
             self.df_tracks_out[f'{i}_bpts']=eval(f'list_bpt_{str(i)}')
-        rows=self.df_tracks_out.apply(lambda x:mm.bpt_distance_compute(x,self.tags,self.config_dict_dlc['dbpt_int']),axis=1)
+        rows=self.df_tracks_out.apply(lambda x:mm.bpt_distance_compute(x,self.tags,self.config_dic_dlc['dbpt_int']),axis=1)
         new_cols=[str(list(i)[0]) + '_'+str(list(i)[1]) for i in itertools.combinations(self.tags, 2)]
         for name,idx in zip(new_cols,range(len(new_cols))):
             self.df_tracks_out[name]=[dists[idx] for dists in rows]
@@ -139,10 +139,10 @@ class PSYCO:
 
     def generate_labeled_video(self,dlc_bpts=False,plot_motion=False,out_folder=None):
         generate_RFID_video(self.path,self.df_RFID,self.tags,self.df_tracks_out,\
-                               self.validation_frames,self.config_dic_analysis,self.dlc_bpts,plot_motion,out_folder=out_folder)
+                               self.validation_frames,self.config_dic_analysis,self.config_dic_dlc,plot_motion,out_folder=out_folder)
         
     def generate_validation_video(self,out_folder='None'):
-        create_validation_Video(self.path,self.df_tracks_out,self.tags,self.config_path,output=None)
+        create_validation_Video(self.path,self.df_tracks_out,self.tags,self.config_dic_analysis,output=None)
         
         
         

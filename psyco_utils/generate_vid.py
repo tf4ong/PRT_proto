@@ -5,10 +5,17 @@ import pandas as pd
 from psyco_utils.track_utils import *
 import multiprocessing as mp
 import itertools
-
 import os
 
-def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,config_dict_analysis,dlc_bpts=False,
+
+
+
+
+#need to implement fast video processing in the future
+#multi-threading/mulitprocessing?
+
+
+def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,config_dict_analysis,config_dic_dlc,dlc_bpts=False,
                         plot_motion=False,out_folder=None):
     frame_count=0
     RFID_coords=config_dict_analysis['RFID_readers']
@@ -19,7 +26,7 @@ def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,config
     width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     if out_folder == None:
-        print(path)
+        #print(path)
         out = cv2.VideoWriter(path+'/RFID.avi', codec, fps, (width+700, height+200))
     else:
         name=os.path.basename(path)
@@ -170,7 +177,6 @@ def create_validation_Video(folder,df1,tags,config_dic,output=None):
     width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
     output=output+'/'+os.path.basename(folder)+'_v_r.avi'
-    print(output)
     out= cv2.VideoWriter(output, codec, fps, (1920, 1080),True)#1920,1260
     frame_count=0
     pbar=tqdm(total=vid_length,position=0,leave=False,desc='Writing Validation Video')
