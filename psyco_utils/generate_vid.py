@@ -3,12 +3,16 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from psyco_utils.track_utils import *
+import multiprocessing as mp
 import itertools
+
 import os
 
-def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,RFID_coords,entrance_reader,dlc_bpts=False,
+def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,config_dict_analysis,dlc_bpts=False,
                         plot_motion=False,out_folder=None):
     frame_count=0
+    RFID_coords=config_dict_analysis['RFID_readers']
+    entrance_reader=config_dict_analysis['entrance_reader']
     vid=cv2.VideoCapture(path+'/raw.avi')
     fps = int(vid.get(cv2.CAP_PROP_FPS))
     codec = cv2.VideoWriter_fourcc(*'XVID')
@@ -33,7 +37,7 @@ def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,RFID_c
             dlc_columns=[f'{i[0]}_{i[1]}' for i in itertools.combinations(tags,2)]
             dlc_columns=[df_tracks_out[i].to_list() for i in dlc_columns]
             dlc_colors=[[int(n) for n in np.random.choice(range(256), size=3)] for i in range(len(dlc_columns))]
-    RFID_readings=[df_tracks_out.iloc[i]['RFID_readings'] for i in validation_frames ]
+    RFID_readings=[df_tracks_out.iloc[i]['RFID_readings'] for i in validation_frames]
     vid_length=int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     Reader_display={i:z for i,z in zip(validation_frames,RFID_readings)}
     colors=['blue','purple','black','orange','red','yellow','aqura','magenta','lbrown','green']
@@ -126,23 +130,19 @@ def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,RFID_c
     out.release()
     vid.release()
     
-def create_validation_Video(folder,config_path,output=None):
-    print('\nWriting Validation Video')
+def create_validation_Video(folder,df1,tags,config_dic,output=None):
     if output is None:
         output = folder
     #output='/media/tony/data/data/test_tracks/vertification/older_coords/vertifications'
-    config_dic=analysis_config_loader(config_path)
+    RFID_coords=config_dic['RFID_readers']
     entrance_reader=config_dic['entrance_reader']
-    if entrance_reader[0]:
+    if entrance_reader != None:
         entrance_reader=entrance_reader
     else:
         entrance_reader=None
     RFID_coords=config_dic['RFID_readers']
     dics={'sort_tracks':eval,'RFID_tracks':eval,'Correction':eval,'RFID_matched':eval,'Matching_details':eval}#'bpts':eval}
     df1=pd.read_csv(folder+'/RFID_tracks.csv',converters=dics)
-    with open(folder+'/'+'logs.txt','r') as f:
-        tags=f.readlines()
-        tags=[int(i) for i in tags[1][6:].split(',')]
     max_mice= len(tags)
     colors=['green','blue','purple','black','orange','red','yellow','aqura','magenta','lbrown']
     tag_codes={tag: num+1 for num, tag in zip(range(len(tags)),tags)}
@@ -173,7 +173,7 @@ def create_validation_Video(folder,config_path,output=None):
     print(output)
     out= cv2.VideoWriter(output, codec, fps, (1920, 1080),True)#1920,1260
     frame_count=0
-    pbar=tqdm(total=vid_length,position=0,leave=False)
+    pbar=tqdm(total=vid_length,position=0,leave=False,desc='Writing Validation Video')
     while vid.isOpened():
         ret,img=vid.read()
         if ret and frame_count<vid_length-1:   

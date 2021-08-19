@@ -125,10 +125,13 @@ def bb_contain_mice_check(frame_number,bbox,path,diff_bg):
     vid.set(1, frame_number)
     ret,frame=vid.read()
     cropped_bbox=frame[ystart:yend,xstart:xend]
-    if abs(np.mean(frame)-np.mean(cropped_bbox))> diff_bg:
+    try:
+        if abs(np.mean(frame)-np.mean(cropped_bbox))> diff_bg:
+            return True
+        else:
+            return False
+    except Exception:
         return True
-    else:
-        return False
 
 
 def detect_config_loader(path):

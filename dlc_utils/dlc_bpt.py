@@ -207,30 +207,7 @@ if __name__ == '__main__':
     except SystemExit:
         pass
     
-'''
-import pandas as pd
-f='/media/tony/40263589263580C8/new_tracks/2020-11-10_18-35-04'
 
-
-
-csv_path=[f+f'/subvideos/{i}' for i in os.listdir(f+'/subvideos/') if i[-4:]=='.csv']
-re_in=[os.path.basename(i) for i in csv_path]
-re_in=[i.split('DLC',1)[0][4:] for i in re_in]
-re_in=[int(i) for i in re_in]
-csv_path_ordered=[x for _,x in sorted(zip(re_in,csv_path))]
-df_list=[pd.read_csv(i) for i in csv_path_ordered]
-df_bpts=pd.concat(df_list)
-df_bpts['frame']=[i for i in range(len(df_bpts))]
-df_bpts=df_bpts.drop(columns=['Unnamed: 0'])
-'''
-    
-    
-    
-f='/media/tony/data/data/ann_marie/mx1/2021-01-07_16-45-50'
-    
-    
-    
-os.path.split(f)[0]
     
     
     

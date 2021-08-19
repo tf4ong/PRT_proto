@@ -8,8 +8,9 @@ import itertools
 from psyco_utils.generate_vid import generate_RFID_video,create_validation_Video
 from psyco_utils.detect_utils import yolov4_detect
 from collections import ChainMap
-
-
+import time
+import warnings
+warnings.filterwarnings("ignore")
 """
 Open arena (i.e. no entrance/exit arena) speed not optomized
 may need adiitionl methods.
@@ -63,10 +64,9 @@ class PSYCO:
                                                                        self.path)
             self.df_tracks_out=mm.match_left_over_tag(self.df_tracks_out,self.tags,self.config_dic_analysis)
             self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
-            self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
             if save_csv:
                 self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
-                print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
+                #print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
             if report_coverage:
                 coverage=mm.coverage(self.df_tracks_out)
             return self.df_tracks_out,self.validation_frames,coverage
@@ -90,7 +90,7 @@ class PSYCO:
                                                                       self.df_tracks_out['RFID_tracks'].values)]
         if save_csv:
             self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
-            print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
+            #print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
         return self.df_tracks_out
     def load_dlc_bpts(self):
         print('Loading Deeplabcut body parts to PSYCO')
@@ -139,10 +139,10 @@ class PSYCO:
 
     def generate_labeled_video(self,dlc_bpts=False,plot_motion=False,out_folder=None):
         generate_RFID_video(self.path,self.df_RFID,self.tags,self.df_tracks_out,\
-                               self.validation_frames,self.config_dic_analysis,self.entrance_RFID,dlc_bpts,plot_motion,out_folder=out_folder)
+                               self.validation_frames,self.config_dic_analysis,self.dlc_bpts,plot_motion,out_folder=out_folder)
         
     def generate_validation_video(self,out_folder='None'):
-        create_validation_Video(self.path,self.config_path,output=None)
+        create_validation_Video(self.path,self.df_tracks_out,self.tags,self.config_path,output=None)
         
         
         

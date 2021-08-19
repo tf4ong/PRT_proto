@@ -62,12 +62,12 @@ def RFID_readout(pathin,config_dict_analysis):
     return df2
 
 def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_threshold):
+    #memory issues?
     id_tracks=[]
     unmatched_predicts=[]
     mot_tracker=Sort(max_age,min_hits,iou_threshold)
     mot_tracker.reset_count()   
-    print('Assigning Sort ID to bboxes')
-    pbar=tqdm(total=len(bboxes),position=0,leave=True)
+    pbar=tqdm(total=len(bboxes),position=0,leave=True,desc='Assigning Sort ID to bboxes')
     for i in bboxes:
         ds_boxes=np.asarray(i)
         sort_output= mot_tracker.update(ds_boxes)
@@ -142,19 +142,29 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
 def reconnect_tracks_ofa(df_tracks,n_tags):# add in configdic settings
     """
     maymove this to detection processing
+    need to optimize for better performance
+    # work in leap distance
+    
     """
     id_range=[ids+1 for ids in range(n_tags)]
-    print('Reconnecting IDs:')
-    pbar=tqdm(total=len(df_tracks),position=0, leave=True)
+    pbar=tqdm(total=len(df_tracks),position=0, leave=True,desc='Reconnecting IDs:')
     for i in range(len(df_tracks)):
-        if len(df_tracks.iloc[i]['track_id']) >0:
-            new_ids=[new_id for new_id in df_tracks.iloc[i]['track_id'] if new_id not in id_range]
+        #get the df values once insteasd of mutiple calls
+        tracked_id = df_tracks.iloc[i]['track_id']
+        if len(tracked_id) >0:
+            new_ids=[new_id for new_id in tracked_id if new_id not in id_range]
             if len(new_ids)>0:
                 missing_ids=list(set(id_range)-set(df_tracks.iloc[i]['track_id']))
                 idx=[]
+                #get rid of append
                 for ids in missing_ids:
-                    index_recent=max([ind for ind,sids in enumerate(df_tracks.iloc[:i]['track_id']) if ids in sids])
-                    idx.append(index_recent)
+                    idx=[]
+                    for ind,sids in enumerate(reversed(df_tracks.iloc[:i]['track_id'].values)):
+                        if ids in sids:
+                            idx.append(ind)
+                            break
+                    #index_recent=max([ind for ind,sids in enumerate(df_tracks.iloc[:i]['track_id']) if ids in sids])
+                    #idx.append(index_recent)
                 old_centroids=[]
                 for ids,ind in zip(missing_ids,idx):
                     old_centroids+=[bbox_to_centroid(track) for track in df_tracks.iloc[ind]['sort_tracks'] if track[4]==ids]
@@ -173,6 +183,7 @@ def reconnect_tracks_ofa(df_tracks,n_tags):# add in configdic settings
                         df_tracks.at[i,'sort_tracks']=tracks
                         df_tracks.at[i,'track_id']=[track[4] for track in tracks]
                     else:
+                        #git rid of append
                         id_range.remove(missing_ids[ind])
                         id_range.append(ids)
         pbar.update(1)
@@ -206,14 +217,26 @@ def get_reconnects(df_tracks):
     entrance_appearances=df_tracks['Entrance_ids'].values
     id_reconnect={}
     for i in cage_ids_to_check:
-        cage_first_appear=[ind for ind,ids in enumerate(cage_appearances) if i in ids][0]
-        entrance_first_appear=[ind for ind,ids in enumerate(entrance_appearances) if i in ids][0]
+        for ind,ids in enumerate(cage_appearances):
+            if i in ids:
+                cage_first_appear=ind
+                break
+        for ind,ids in enumerate(entrance_appearances):
+            if i in ids:
+                 entrance_first_appear=ind
+                 break
+        #cage_first_appear=[ind for ind,ids in enumerate(cage_appearances) if i in ids][0]
+        #entrance_first_appear=[ind for ind,ids in enumerate(entrance_appearances) if i in ids][0]
+        #entrance_first_appear
         if  entrance_first_appear>cage_first_appear and cage_first_appear>100:
             id_reconnect[i]=cage_first_appear
         else:
             pass
     for i in cage_ids_to_recconnect:
-        cage_first_appear=[ind for ind,ids in enumerate(cage_appearances) if i in ids][0]
+        #cage_first_appear=[ind for ind,ids in enumerate(cage_appearances) if i in ids][0]
+        for ind,ids in enumerate(cage_appearances):
+            if i in ids:
+                cage_first_appear=ind
         if cage_first_appear>100:
             id_reconnect[i]=cage_first_appear
     return id_reconnect
@@ -228,8 +251,8 @@ def track_exist_af(sort_id,frame,df):
 
 def replace_track_leap(frame,sort_id_old,sort_id_new,df_tracks):
     ind_list=[ind for ind, sids in enumerate(df_tracks.iloc[frame:]['track_id'].values) if sort_id_new in sids]
-    print(f'\nStarting at frame {frame} to reassciate SORT ID {sort_id_new} to {sort_id_old} ')
-    pbar=tqdm(total=len(ind_list),position=0, leave=True)
+    msg=f'\nStarting at frame {frame} to reassciate SORT ID {sort_id_new} to {sort_id_old} '
+    pbar=tqdm(total=len(ind_list),position=0, leave=True,desc=msg)
     for i in ind_list:
         tracks_remain=[z for z in df_tracks.iloc[frame+i]['sort_tracks'] if z[4] !=sort_id_new]
         track_new=[z for z in df_tracks.iloc[frame+i]['sort_tracks'] if z[4] ==sort_id_new][0]
@@ -354,7 +377,7 @@ def spontanuous_bb_remover(reconnect_ids,df_tracks,config_dict_analysis,config_d
                         tracks_remain=[z for z in df_tracks.iloc[frame+ind]['sort_tracks'] if z[4] !=sort_id]
                         df_tracks.at[frame+ind,'sort_tracks']=tracks_remain
                         id2remove.append(sort_id)
-    print(f'Removed sort ids {id2remove} for possible false negatives')
+    print(f'Removed sort ids {id2remove} for possible false positives')
     id2remove=list(set(id2remove))
     df_tracks['track_id']=[get_ids(x) for x in df_tracks['sort_tracks'].values]
     df_tracks['ious']=[iou_tracks(x) for x in df_tracks['sort_tracks'].values]
@@ -467,15 +490,15 @@ def RFID_matching(df_tracks,tags,config_dict_analysis,folder_path):
     if entrance_reader is None:
         pass
     else:
-        print('Starting to match RFID readings from entrance reader \n')
-        pbar=tqdm(total=len(entrance_val),position=0, leave=True)
+        msg='Starting to match RFID readings from entrance reader'
+        pbar=tqdm(total=len(entrance_val),position=0, leave=True,desc=msg)
         for vframe in entrance_val: 
             for readings in df_tracks.iloc[vframe]['RFID_readings']:
                 if readings[1] != 'None' and readings[0] ==entrance_reader and vframe>entr_frames and readings[1] in tags:
                     df_tracks=entrance_RFID_match(df_tracks,vframe,readings,RFID_coords,entr_frames,entrance_reader,ent_thres,folder_path)
             pbar.update(1)
-    print('Starting to match RFID readings from Cage readers \n')
-    pbar=tqdm(total=len(cage_val),position=0, leave=True)
+    msg='Starting to match RFID readings from Cage readers'
+    pbar=tqdm(total=len(cage_val),position=0, leave=True,desc=msg)
     for vframe in cage_val:
         for readings in df_tracks.iloc[vframe]['RFID_readings']:
              if readings[1] != 'None' and readings[0] !=entrance_reader and readings[1] in tags:
@@ -690,7 +713,7 @@ def tag_left_recover_simp(df,tags):
     list_to_check_final=[z for z in list_to_check_final if len(df.iloc[z].lost_tracks) ==1]
     if len(list_to_check_final) !=0:
         read_length=len(list_to_check_final)
-        pbar = tqdm(total=read_length,position=0, leave=True)
+        pbar = tqdm(total=read_length,position=0, leave=True,desc='Matching last tag in frame')
         for i in list_to_check_final:
             RFID_list_i=[z[4] for z in df.iloc[i].RFID_tracks]
             if len(set(RFID_list_i)) == len(tags):
@@ -789,8 +812,8 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
     #bbox_revised = combined_df['sort_tracks']
     #unmatched_predicts=combined_df['unmatched_predicts']
     ent_count = [0]
-    print('Revising RFID tracks')
-    pbar= tqdm(total=len(combined_df),position=0,leave=False)
+    msg='Inserting Kalmen filter predictions'
+    pbar= tqdm(total=len(combined_df),position=0,leave=True,desc=msg)
     for i in range(len(combined_df)):
         if i != 0:
             tracks=np.asarray(combined_df.iloc[i]['sort_tracks'])
@@ -894,6 +917,7 @@ def id_tracked(sort_tracks,RFID_tracks):
 
 
 def remove_match_forward(df_tracks,frame,sort_id,index_checklist_f):
+    #can optimize
     for inde in index_checklist_f:
         sid_track=[sid for sid in df_tracks.iloc[frame+inde]['sort_tracks'] if sid[4]==sort_id][0]
         track_rf=[t for t in df_tracks.iloc[frame+inde]['RFID_tracks'] if t[:4] !=sid_track[:4]]
@@ -1023,6 +1047,7 @@ def remove_match_revised2(df_tracks,sort_id_list,sided_list,correct_iou,entrance
 def RFID_SID_match(sort_id,match_frames,stop_frame,df_tracks,
                    readout,entrance_reader,RFID_coords,
                    ent_thres,direction,ent,frame,match_length=5):
+    #speed up?
     #needs to label sid 5 >frames
     #stops if the rfid/sid is marked
     #df_tracks_temp=df_tracks.copy(deep=True)
@@ -1084,8 +1109,8 @@ def match_left_over_tag(df,tags,config_dict_analysis):
     while True:
         index_list=get_left_over_tag_indexes(df,tags)
         index_list_refined=refine_frame_left_list(index_list,df)
-        print(f'Starting Left over Tag match loop {loop_count}')
-        pbar=tqdm(total=len(index_list_refined),position=0,leave=True)
+        msg=f'Starting Left over Tag match comphrensive loop {loop_count}'
+        pbar=tqdm(total=len(index_list_refined),position=0,leave=True,desc=msg)
         for i in index_list_refined:
             RFID_tracked=[strack[4] for strack in df.iloc[i].RFID_tracks]
             if len(RFID_tracked)<len(tags):
@@ -1217,6 +1242,7 @@ def iteraction(bb_test,bb_gt):
 
 
 # very repetitive functions, should think of a better way
+#and dirty 
 
 def search_id_marked_list_forward(df,frame,sid,limit=None):
     list_id_marked=[]
