@@ -8,6 +8,8 @@ from scipy.optimize import linear_sum_assignment
 from psyco_utils.sort import Sort
 import sys
 from itertools import chain
+from decord import VideoReader
+from decord import cpu, gpu
 pd.options.mode.chained_assignment = None
 
 
@@ -15,50 +17,60 @@ pd.options.mode.chained_assignment = None
 Pandas based processing functionsimport multiprocessing 
 """
 
-def RFID_readout(pathin,config_dict_analysis):
+def RFID_readout(pathin,config_dict_analysis,n_mice):
     """
     Loads to RFID csv file in to pandas dataframe[mm.rfid2bpts
     df_RFID_cage=rm.RFID_readout(FLAGS.data,0)# change for entering specific reader as entrance reader
         1.pathin: path of the rfid files ( data_all.csv and text.csv)
         2. ent_entrance reader number
     """
-    ent_reader=config_dict_analysis['entrance_reader']
-    time_thresh=config_dict_analysis['entrance_time_thres']
-    df1=pd.read_csv(f'{pathin}/RFID_reads.csv')
-    df2=pd.read_csv(f'{pathin}/RFID_data_all.csv',index_col=False)
-    df2.Time=pd.to_datetime(df2['Time'],format="%Y-%m-%d_%H:%M:%S.%f")
-    df1.Timestamp=pd.to_datetime(df1['Timestamp'],format="%Y-%m-%d %H:%M:%S.%f")
-    df1['Timestamp']=df1['Timestamp'].astype(np.int64)/10**9
-    df2['Time']=df2['Time'].astype(np.int64)/10**9
-    df_ent_reader=df1.query(f'Reader =={str(ent_reader)}')
-    ent_times=df_ent_reader.diff(axis=0)#.Timestamp.apply(lambda x: x.total_seconds())
-    df1=df1.drop(df1.index[ent_times[ent_times.Timestamp<time_thresh].index],inplace=False)
-    df1['Readings']=df1.drop(columns=['Timestamp']).values.tolist()
-    df1=df1.reset_index()
-    df2=df2.reset_index()
-    idx=np.searchsorted(df2['Time'], df1['Timestamp'],side='right').tolist()
-    df2['RFID_readings']=np.nan
-    df2['RFID_readings']=df2['RFID_readings'].astype('object')
-    for i in range(len(idx)): 
-        if idx[i] ==len(df2):
-            idx[i]=len(df2)-1
-        else:
+    if n_mice != 1:
+        ent_reader=config_dict_analysis['entrance_reader']
+        time_thresh=config_dict_analysis['entrance_time_thres']
+        df1=pd.read_csv(f'{pathin}/text.csv')
+        df2=pd.read_csv(f'{pathin}/RFID_data_all.csv',index_col=False)
+        df2.Time=pd.to_datetime(df2['Time'],format="%Y-%m-%d_%H:%M:%S.%f")
+        df1.Timestamp=pd.to_datetime(df1['Timestamp'],format="%Y-%m-%d %H:%M:%S.%f")
+        df1['Timestamp']=df1['Timestamp'].astype(np.int64)/10**9
+        df2['Time']=df2['Time'].astype(np.int64)/10**9
+        df_ent_reader=df1.query(f'Reader =={str(ent_reader)}')
+        ent_times=df_ent_reader.diff(axis=0)#.Timestamp.apply(lambda x: x.total_seconds())
+        df1=df1.drop(df1.index[ent_times[ent_times.Timestamp<time_thresh].index],inplace=False)
+        df1['Readings']=df1.drop(columns=['Timestamp']).values.tolist()
+        df1=df1.reset_index()
+        df2=df2.reset_index()
+        idx=np.searchsorted(df2['Time'], df1['Timestamp'],side='right').tolist()
+        df2['RFID_readings']=np.nan
+        df2['RFID_readings']=df2['RFID_readings'].astype('object')
+        for i in range(len(idx)): 
+            if idx[i] ==len(df2):
+                idx[i]=len(df2)-1
+            else:
+                pass
+        for i in range(len(idx)):
+            if np.isnan(df2.iloc[idx[i]]['RFID_readings']).all():
+                df2.at[idx[i],'RFID_readings']=[df1.iloc[i]['Readings']]
+            else:
+                original=df2.iloc[idx[i]]['RFID_readings']
+                original.append(df1.iloc[i]['Readings'])
+                df2.at[idx[i],'RFID_readings']=original
+        df2=df2.rename(columns={'Frame':'frame'})
+        df2=df2.reset_index()
+        df2=df2.drop(columns=['index'])
+        try:
+            df2=df2.drop(columns=['RFID_0', 'RFID_1', 'RFID_2', 'RFID_3', 'RFID_4', 'RFID_5'])
+        except Exception:
             pass
-    for i in range(len(idx)):
-        if np.isnan(df2.iloc[idx[i]]['RFID_readings']).all():
-            df2.at[idx[i],'RFID_readings']=[df1.iloc[i]['Readings']]
-        else:
-            original=df2.iloc[idx[i]]['RFID_readings']
-            original.append(df1.iloc[i]['Readings'])
-            df2.at[idx[i],'RFID_readings']=original
-    df2=df2.rename(columns={'Frame':'frame'})
-    df2=df2.reset_index()
-    df2=df2.drop(columns=['index'])
-    try:
-        df2=df2.drop(columns=['RFID_0', 'RFID_1', 'RFID_2', 'RFID_3', 'RFID_4', 'RFID_5'])
-    except Exception:
-        pass
-    df2['frame']=range(len(df2))
+        df2['frame']=range(len(df2))
+    else:
+        df2=pd.read_csv(f'{pathin}/RFID_data_all.csv',index_col=False)
+        df2.Time=pd.to_datetime(df2['Time'],format="%Y-%m-%d_%H:%M:%S.%f")
+        df2['Time']=df2['Time'].astype(np.int64)/10**9
+        df2['frame']=range(len(df2))
+        try:
+            df2=df2.drop(columns=['RFID_0', 'RFID_1', 'RFID_2', 'RFID_3', 'RFID_4', 'RFID_5'])
+        except Exception:
+            pass
     return df2
 
 def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_threshold):
@@ -73,20 +85,21 @@ def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_thres
         sort_output= mot_tracker.update(ds_boxes)
         if len(sort_output) != 0:
             trackers,unmatched_predict=sort_output[0],sort_output[1]
-            id_tracks.append(trackers.tolist())
+            id_tracks.append(trackers)#.tolist())
             if len(unmatched_predict) != 0:
                 for pred in unmatched_predict:
                     pred_cent=bbox_to_centroid(pred)
                     if pred_cent[0]>resolution[0] or pred_cent[0]<0 or \
                         pred_cent[1]>resolution[1] or pred_cent[1]<0: # if centroid out of frame
-                        unmatched_predict.remove(pred)                        
+                        np.delete(unmatched_predict,pred)                        
                     elif bbox_area(pred)<area_thres[0] or \
                         bbox_area(pred)>area_thres[1]: # if area beyond thres
-                        unmatched_predict.remove(pred)
-            unmatched_predicts.append(unmatched_predict)
+                        #unmatched_predict.remove(pred)
+                        np.delete(unmatched_predict,pred)
+            unmatched_predicts.append(np.asarray(unmatched_predict))
         else:
-            id_tracks.append([])
-            unmatched_predicts.append([])
+            id_tracks.append(np.asarray([]))
+            unmatched_predicts.append(np.asarray([]))
         pbar.update(1)
     return id_tracks,unmatched_predicts
 
@@ -96,8 +109,6 @@ def mouse_limiter(bb,n_mice):
         bb=bb[:n_mice]
     return bb
     
-
-
 def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_mice):
     RFID_coords=config_dict_analysis['RFID_readers']
     entrance_reader=config_dict_analysis['entrance_reader']
@@ -120,9 +131,9 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
     sort_tracks,unmatched_predicts=sort_tracks_generate(df_tracks['bboxes'].values,resolution,area_thresh,
                                                         max_age,min_hits,iou_threshold)
     df_tracks['unmatched_predicts']=unmatched_predicts
-    df_tracks['unmatched_predicts']=[float_int(x) for x in df_tracks['unmatched_predicts'].values]
+    #df_tracks['unmatched_predicts']=[float_int(x) for x in df_tracks['unmatched_predicts'].values]
     df_tracks['sort_tracks']=sort_tracks
-    df_tracks['sort_tracks']=[float_int(x) for x in df_tracks['sort_tracks'].values]
+    #df_tracks['sort_tracks']=[float_int(x) for x in df_tracks['sort_tracks'].values]
     df_tracks=bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,
                            ent_time,interaction_thres,ent_thres,n_mice,pathin)
     if entrance_reader is None:
@@ -520,9 +531,9 @@ def sort_track_list(track_list):
 
 
 def remove_match(df_tracks,frame,sort_id,rfid,correct_iou,ent_thres,entrance_reader,RFID_coords,readout):
-    sort_track=[strack for strack in df_tracks.iloc[frame]['sort_tracks']if strack[4] ==sort_id][0]
-    rfid_track_1=[rtracks for rtracks in df_tracks.iloc[frame]['RFID_tracks'] if rtracks[:4]==sort_track[:4]]
-    rfid_track_2=[rtracks for rtracks in df_tracks.iloc[frame]['RFID_tracks'] if rtracks[4]==readout[1]]
+    sort_track=[strack for strack in df_tracks.iloc[frame]['sort_tracks']if strack[4] ==sort_id][0]#the sort id in question
+    rfid_track_1=[rtracks for rtracks in df_tracks.iloc[frame]['RFID_tracks'] if rtracks[:4]==sort_track[:4]]# the RFID markedt ont he sort_id
+    rfid_track_2=[rtracks for rtracks in df_tracks.iloc[frame]['RFID_tracks'] if rtracks[4]==readout[1]] #the correct RFID on an other sort_id
     sided=None
     if len(rfid_track_1)>0 and len(rfid_track_2) ==0:
         index_checklist_f=[ind for ind,sids in enumerate(df_tracks.iloc[frame:]['track_id'].values) if sort_id in sids]
@@ -536,6 +547,7 @@ def remove_match(df_tracks,frame,sort_id,rfid,correct_iou,ent_thres,entrance_rea
         index_checklist_f=[ind for ind,sids in enumerate(df_tracks.iloc[frame:]['track_id'].values) if sided in sids]
         index_checklist_b=list(reversed([ind for ind,sids in enumerate(df_tracks.iloc[:frame]['track_id'].values) if sided in sids]))
         df_tracks=remove_match_forward(df_tracks,frame,sided,index_checklist_f)
+        print(frame)
         df_tracks,frame2stopmatch=remove_match_backward(df_tracks,sided,entrance_reader,RFID_coords,correct_iou,ent_thres,index_checklist_b,frame)
         id_correted={sort_id:None,sided:frame2stopmatch}
         return df_tracks,frame2stopmatch,id_correted
@@ -798,6 +810,123 @@ def get_tracked_activity(motion_status,motion_roi,RFID_tracks,tags):
     return actives
 
 
+
+def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,ent_thres,n_mice,pathin):
+    vid_path=pathin+'/raw.avi'
+    combined_df=Combine_RFIDreads(df_tracks,df_RFID)
+    validation_frames=combined_df[combined_df.RFID_readings.notnull()].index
+    
+    if entrance_reader is None:
+        entrance_val=[]
+    else:
+        entrance_val=list(set([i for i in validation_frames for x in combined_df.iloc[i]['RFID_readings'] if x[0]==entrance_reader]))
+    entrance_times=[combined_df.iloc[t]['Time'] for t in entrance_val]
+    entrance_times.sort()
+    entrance_times=np.asarray(entrance_times)
+    ent_count = [0]
+    
+    time_list=combined_df['Time'].values
+    tracks=combined_df['sort_tracks'].values
+    tracks_pred=combined_df['unmatched_predicts'].values
+    msg='Checking frames for occlusions/yolov4 fails'
+    pbar= tqdm(total=len(combined_df),position=0,leave=True,desc=msg)
+    frames2check=[]
+    for i in range(len(combined_df)):
+        if i!=0:
+            t=time_list[i]
+            if entrance_reader is None:
+                    ent_count.append(0) # can't be close to entrance, because there is no entrance.
+                    time_threshs=[]
+            else:
+                if len(tracks[i]) !=0:
+                    ent_count_tem = [distance_to_entrance(bbox,RFID_coords,entrance_reader) for bbox in tracks[i]]
+                    ent_count_tem = len([dist for dist in ent_count_tem if dist <ent_thres])
+                else:
+                    ent_count_tem=0
+                ent_count.append(ent_count_tem)
+                time_threshs= entrance_times-t 
+                #sys.exit()
+            if tracks[i].shape[0] > tracks[i-1].shape[0]:
+                if meet_criteria_trigger(tracks[i],tracks[i-1],i,ent_count,time_threshs) or n_mice==1:
+                    if len(tracks[i]) ==0:
+                        current_ids=np.asarray([])
+                    else:
+                        current_ids=tracks[i][:,4]
+                    if len(tracks[i-1]) ==0:
+                        prev_ids=np.asarray([])
+                    else:    
+                        prev_ids=tracks[i-1][:,4]
+                    pass
+                    missing_bb=[strack for strack in tracks[i-1] if strack[4] in prev_ids and strack[4] not in current_ids]
+                    for strack_inde,strack in enumerate(missing_bb):
+                        iteraction_list=[iteraction(strack,strack_prev) for strack_prev in  tracks[i-1]]
+                        iteraction_list=[it_val for it_val in iteraction_list if it_val>threshold]
+                        if iteraction_list ==[]:
+                            missing_bb.pop(strack_inde)
+                    if len(missing_bb)>0:
+                        for strack in tracks_pred[i]:
+                            iou_list=[iou(strack, strack_m) for strack_m in missing_bb]
+                            iou_list=[inde_val for inde_val, iou_val in enumerate(iou_list) if iou_val>0.5]
+                            if len(iou_list)>0:
+                                #if bb_contain_mice_check(i,strack,vid_path,30):
+                                    if len(tracks[i])+1<= n_mice:
+                                        if entrance_reader is None:
+                                            #track_add=strack[:4]+[int(missing_bb[max(iou_list)][4])]
+                                            #current_tracks.append(track_add)
+                                            missing_bb.pop(max(iou_list))
+                                            frames2check.append([i,strack,int(missing_bb[max(iou_list)][4])])
+                                        else:
+                                            if distance_to_entrance(strack,RFID_coords,entrance_reader) >ent_thres:
+                                                frames2check.append([i,strack,int(missing_bb[max(iou_list)][4])])
+                                                missing_bb.pop(max(iou_list))
+                                    else:#just uses previous frame's predict for it 
+                                        if entrance_reader is None:
+                                            if len(tracks[i])+1<= n_mice:
+                                                track_add= [strack2 for strack2 in missing_bb if strack2[4]==int(missing_bb[max(iou_list)][4])][0]
+                                                frames2check.append([i,track_add,track_add[4]])
+                                                missing_bb.pop(max(iou_list))
+                                        else:
+                                            if len(tracks[i])+1<= n_mice:
+                                                if distance_to_entrance(strack,RFID_coords,entrance_reader) >ent_thres:
+                                                    track_add= [strack2 for strack2 in missing_bb if strack2[4]==int(missing_bb[max(iou_list)][4])][0]
+                                                    frames2check.append([i,track_add,track_add[4]])
+                                                    missing_bb.pop(max(iou_list))
+                                        #if entrance_reader is None:
+                                        #    track_add=strack[:4]+[int(missing_bb[max(iou_list)][4])]
+        if len(ent_count) ==3:
+            ent_count=ent_count[1:]
+        pbar.update(1)
+    msg='Inserting Kalmen filter predictions at frames with occlusions/yolov4 fails'
+    pbar= tqdm(total=len(frames2check),position=0,leave=True,desc=msg)
+    frames2extract=list(set([i[0] for i in frames2check]))
+    if len(frames2extract)>100:
+        extract_sublists=list_split(frames2extract,100)
+        for frame_sublist in extract_sublists:
+            vr = VideoReader(vid_path, ctx=cpu(0))
+            frames = vr.get_batch(list(frame_sublist)).asnumpy()
+            frame_check=[bb_predicts for bb_predicts in frames2check if bb_predicts[0] in frame_sublist]
+            for bbs in frame_check:
+                frame_inde= list(frame_sublist).index(bbs[0])
+                if bb_contain_mice_check(frames[frame_inde],bbs[1],30):
+                    tracks_add=np.append(bbs[1][:4],bbs[2])
+                    tracks[bbs[0]]=np.append(tracks[bbs[0]],[tracks_add],axis=0)
+                pbar.update(1)
+    else:
+        vr = VideoReader(vid_path, ctx=cpu(0))
+        frames = vr.get_batch(list(frames2extract)).asnumpy()
+        for bbs in frames2check:
+            frame_inde= list(frames2extract).index(bbs[0])
+            if bb_contain_mice_check(frames[frame_inde],bbs[1],30):
+                tracks_add=np.append(bbs[1][:4],bbs[2])
+                #print(tracks_add)
+                tracks[bbs[0]]=np.append(tracks[bbs[0]],[tracks_add],axis=0)
+            pbar.update(1)
+    combined_df['sort_tracks'] = tracks
+    combined_df=combined_df.drop(columns=['Time','RFID_readings'])
+    return combined_df
+
+
+'''
 def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,ent_thres,n_mice,pathin):
     #mayber can optimize speed?
     vid_path=pathin+'/raw.avi'
@@ -880,28 +1009,26 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
     #combined_df['sort_tracks']=bbox_revised
     combined_df=combined_df.drop(columns=['Time','RFID_readings'])
     return combined_df
-
+'''
 def meet_criteria_trigger(tracks,tracks_prev,i,ent_count,time_threshs):
     if tracks_prev.shape[0] - tracks.shape[0] > 1:
-        criteria = 0#True # more than 1 disappear. We assume that only one mouse can exit from tunnel at time T.
+        return True#True # more than 1 disappear. We assume that only one mouse can exit from tunnel at time T.
     else:
-        if len(time_threshs)>0: # if there is a mouse enter tunnel and it was detected within x second。
-            criteria = 1 #False #  Mouse number -1 is normal, Pass,
+        if len(np.where(np.absolute(time_threshs)<1)[0])>0: # if there is a mouse enter tunnel and it was detected within x second。
+            return True #False #  Mouse number -1 is normal, Pass,
         else:  # check it is mouse do not enter or do not detected by RFID
             if i <=3: # information is not enough
-                criteria = 2 #False # Pass
+                return False #False # Pass
             else:
                 
                 if ent_count[0] > 0 and ent_count[1] > 0:
                     if ent_count[1] - ent_count[2] ==1:
-                        criteria = 3 # False # preivious two frames there are N mice which are close to entrance,
+                        return False # False # preivious two frames there are N mice which are close to entrance,
                         #but at current frame, N-1 are close enough to entrance, it means one exit the cage via entrance,Pass
                     else:
-                        criteria = 0#True # not the mice around entrance disappear, trigger
+                        return True#True # not the mice around entrance disappear, trigger
                 else:
-                    criteria = 0#True 
-                
-    return criteria
+                    return True#True
 
 
 def id_tracked(sort_tracks,RFID_tracks):
@@ -928,29 +1055,17 @@ def remove_match_forward(df_tracks,frame,sort_id,index_checklist_f):
 
 def remove_match_backward(df_tracks,sort_id,entrance_reader,RFID_coords,correct_iou,ent_thres,index_checklist_b,frame):
     backward_remove=True
-    for inde in index_checklist_b:
-        if backward_remove:
-            if sort_id in df_tracks.iloc[inde]['track_id']:
-                iou_dic_b={i:v  for i,v in df_tracks.iloc[inde]['ious'].items() if sort_id in i}
-                track2check=[strack for strack in df_tracks.iloc[inde]['sort_tracks'] if strack[4] ==sort_id][0]
-                if entrance_reader is None:
-                    if len(iou_dic_b) != 0:
-                        if len({i:v  for i,v in iou_dic_b.items() if v>correct_iou})>0:
-                            track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
-                            df_tracks.at[inde,'RFID_tracks']=track_rf
-                            backward_remove=False
-                        else:
-                            track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
-                            df_tracks.at[inde,'RFID_tracks']=track_rf
-                    else:
-                        track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
-                        df_tracks.at[inde,'RFID_tracks']=track_rf
-                else: 
-                    if distance_to_entrance(track2check,RFID_coords,entrance_reader) >ent_thres:
-                        #print(distance_to_entrance(track2check,RFID_coords,entrance_reader))
-                        #print(ent_thres)
+    if len(index_checklist_b):
+        for inde in index_checklist_b:
+            if backward_remove:
+                if sort_id in df_tracks.iloc[inde]['track_id']:
+                    iou_dic_b={i:v  for i,v in df_tracks.iloc[inde]['ious'].items() if sort_id in i}
+                    track2check=[strack for strack in df_tracks.iloc[inde]['sort_tracks'] if strack[4] ==sort_id][0]
+                    if entrance_reader is None:
                         if len(iou_dic_b) != 0:
                             if len({i:v  for i,v in iou_dic_b.items() if v>correct_iou})>0:
+                                track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
+                                df_tracks.at[inde,'RFID_tracks']=track_rf
                                 backward_remove=False
                             else:
                                 track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
@@ -958,13 +1073,27 @@ def remove_match_backward(df_tracks,sort_id,entrance_reader,RFID_coords,correct_
                         else:
                             track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
                             df_tracks.at[inde,'RFID_tracks']=track_rf
-                    else:
-                        backward_remove=False
-        else:
-            break
-    frame2stopmatch=inde
-    return df_tracks,frame2stopmatch
-
+                    else: 
+                        if distance_to_entrance(track2check,RFID_coords,entrance_reader) >ent_thres:
+                            #print(distance_to_entrance(track2check,RFID_coords,entrance_reader))
+                            #print(ent_thres)
+                            if len(iou_dic_b) != 0:
+                                if len({i:v  for i,v in iou_dic_b.items() if v>correct_iou})>0:
+                                    backward_remove=False
+                                else:
+                                    track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
+                                    df_tracks.at[inde,'RFID_tracks']=track_rf
+                            else:
+                                track_rf=[t for t in df_tracks.iloc[inde]['RFID_tracks'] if  t[:4] !=track2check[:4]]
+                                df_tracks.at[inde,'RFID_tracks']=track_rf
+                        else:
+                            backward_remove=False
+            else:
+                break
+            frame2stopmatch=inde
+        return df_tracks,frame2stopmatch
+    else:
+        return df_tracks,frame
 
 def remove_match_revised(df_tracks,sort_id_list,sided_list,correct_iou,entrance_reader,ent_thres,RFID_coords):
     #finds out which revises frame in smaller
@@ -1020,6 +1149,9 @@ def remove_match_revised2(df_tracks,sort_id_list,sided_list,correct_iou,entrance
             print(index_iou_check)
             print(frame2check)
             print(sort_id_list)
+            print(sided_list)
+            import sys
+            sys.exit()
     else:
        frame2stop=sided_list[1]
     if frame2stop<sided_list[1]:

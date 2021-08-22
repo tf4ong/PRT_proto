@@ -2,6 +2,13 @@ import numpy as np
 from configparser import ConfigParser
 import math
 import cv2
+from numba import jit
+from decord import VideoReader
+from decord import cpu, gpu
+from itertools import islice
+
+
+
 """
 simple functions 
 """
@@ -29,6 +36,7 @@ def get_unique_ids(x):
     newlist=list(set(newlist))
     return newlist
 
+@jit
 def bbox_area(bbox):
     '''
     calculates the area of the bbself.df_track_temp
@@ -36,8 +44,7 @@ def bbox_area(bbox):
     ''' 
     w=abs(bbox[0]-bbox[2])
     h=abs(bbox[1]-bbox[3])
-    area=w*h
-    return area
+    return w*h
 
 def float_int(x):
     rounded=[]
@@ -52,11 +59,12 @@ def bbox_to_centroid(bbox):
     returns the centroid of the bbox
     '''
     if bbox!=[]:
-        cX=int((bbox[0]+bbox[2])/2)
-        cY=int((bbox[1]+bbox[3])/2)
+        cX=(bbox[0]+bbox[2])/2
+        cY=(bbox[1]+bbox[3])/2
         return [cX,cY]
     else:
         return []
+
 
 def Distance(centroid1,centroid2):
     ''' 
@@ -66,6 +74,7 @@ def Distance(centroid1,centroid2):
     dist = math.sqrt((centroid2[0] - centroid1[0])**2 + (centroid2[1] - centroid1[1])**2)
     return dist
 
+@jit
 def iou(bb_test,bb_gt):
     xx1 = np.maximum(bb_test[0], bb_gt[0])
     yy1 = np.maximum(bb_test[1], bb_gt[1])
@@ -112,21 +121,24 @@ def distance_to_entrance(bbox2,RFID_coords,entrance_reader):
     bbox_2_centroid=bbox_to_centroid(bbox2)
     return Distance(bbox_1_centroid,bbox_2_centroid)
 
-
+def list_split(it,size):
+    it = iter(it)
+    return list(iter(lambda: tuple(islice(it, size)), ()))
 
 def apply_slack(listbb,slack):
     for bbi in range(len(listbb)):
         listbb[bbi]=[listbb[bbi][0]+slack,listbb[bbi][1]+slack,listbb[bbi][2]+slack,listbb[bbi][3]+slack,listbb[bbi][4]]
     return listbb
 
-def bb_contain_mice_check(frame_number,bbox,path,diff_bg):
+
+
+
+
+def bb_contain_mice_check(frame,bbox,diff_bg):
     xstart,ystart,xend,yend= int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3])
-    vid=cv2.VideoCapture(path)
-    vid.set(1, frame_number)
-    ret,frame=vid.read()
     cropped_bbox=frame[ystart:yend,xstart:xend]
     try:
-        if abs(np.mean(frame)-np.mean(cropped_bbox))> diff_bg:
+        if np.absolute(np.mean(frame)-np.mean(cropped_bbox))> diff_bg:
             return True
         else:
             return False

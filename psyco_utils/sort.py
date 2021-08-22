@@ -205,7 +205,7 @@ class Sort(object):
     unmatched_tracks=[]
     if len(unmatched_trks) !=0:
         for track_inde in unmatched_trks:
-            unmatched_tracks.append(trks[track_inde].tolist())
+            unmatched_tracks.append(trks[track_inde])
     for t,trk in enumerate(self.trackers):
       if(t not in unmatched_trks):
         d = matched[np.where(matched[:,1]==t)[0],0]
@@ -222,7 +222,7 @@ class Sort(object):
         if(trk.time_since_update > self.max_age):
           self.trackers.pop(i)
     if(len(ret)>0):
-      return np.concatenate(ret),unmatched_tracks
+      return np.concatenate(ret),np.asarray(unmatched_tracks)
     return np.empty((0,5))
 
   def reset_count(self):

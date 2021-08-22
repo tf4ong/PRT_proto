@@ -21,7 +21,7 @@ class PSYCO:
         
         with open(path+'/'+'logs.txt','r') as f:
             tags=f.readlines()
-            self.tags=[int(i) for i in tags[1][6:].split(',')]
+            self.tags=[i for i in tags[1][6:].split(',')]
         self.config_path=config_path
         self.config_dic_analysis=analysis_config_loader(config_path)
         self.config_dic_detect=detect_config_loader(config_path)
@@ -31,18 +31,18 @@ class PSYCO:
         yolov4_detect(self.path,self.config_dic_detect,write_vid)
         return
     def load_RFID(self):
-        if len(self.tags)!=1:
-            try:
-                self.df_RFID=mm.RFID_readout(self.path,self.config_dic_analysis)
-            except Exception as e:
-                print(e)
-                print('Confirm correct folder path')
-                sys.exit(0)
+        try:
+            self.df_RFID=mm.RFID_readout(self.path,self.config_dic_analysis,len(self.tags))
+        except Exception as e:
+            print(e)
+            print('Confirm correct folder path')
+            sys.exit(0)
+        if len(self.tags) !=1:
             n_RFID_readings=len(self.df_RFID[self.df_RFID['RFID_readings'].notnull()])
-            duration=self.df_RFID.iloc[-1]['Time']-self.df_RFID.iloc[0]['Time']
-            print(f'{n_RFID_readings} Tags were read in {duration} seconds')
         else:
-            print('Only one mouse being tracked, skipping process')
+            n_RFID_readings=0
+        duration=self.df_RFID.iloc[-1]['Time']-self.df_RFID.iloc[0]['Time']
+        print(f'{n_RFID_readings} Tags were read in {duration} seconds')
     def load_dets(self):
         self.df_tracks=mm.read_yolotracks(self.path,self.config_dic_analysis,self.config_dic_tracking,
                                           self.df_RFID,len(self.tags))
