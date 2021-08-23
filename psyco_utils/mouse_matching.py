@@ -1337,11 +1337,15 @@ def match_left_over_tag(df,tags,config_dict_analysis):
                 df=RFID_SID_match(sid_left,index_checklist_f,forward_rframe,
                                df,readout,entrance_reader,RFID_coords,ent_thres,'forward',False,i)
             pbar.update(1)
-        frames_done+=index_list.copy()
-        index_list=get_left_over_tag_indexes(df,tags)
+        if loop_count>3:
+            frames_done+=index_list.copy()
+            index_list=get_left_over_tag_indexes(df,tags)
+            index_list=list(set(index_list)-set(frames_done))
+        else:
+            index_list=get_left_over_tag_indexes(df,tags)
         if len(index_list) ==0:
             break
-        index_list=list(set(index_list)-set(frames_done))
+        
         if len(index_list) ==0:
             break
         loop_count+=1
