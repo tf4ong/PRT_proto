@@ -136,6 +136,8 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
     #df_tracks['sort_tracks']=[float_int(x) for x in df_tracks['sort_tracks'].values]
     df_tracks=bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,
                            ent_time,interaction_thres,ent_thres,n_mice,pathin)
+    df_tracks['sort_tracks']=df_tracks['sort_tracks'].apply(array2list)
+    df_tracks['sort_tracks']=[float_int(x) for x in df_tracks['sort_tracks'].values]
     if entrance_reader is None:
         pass
     else:
@@ -482,7 +484,7 @@ def RFID_matching(df_tracks,tags,config_dict_analysis,folder_path):
     df_tracks['sort_tracks']=[sorted(tracks,key= lambda x: x[4]) for tracks in df_tracks['sort_tracks']]
     validation_frames=[f for f in df_tracks[df_tracks.RFID_readings.notnull()].index]
     validation_frames.sort()
-    pd.DataFrame(validation_frames).to_csv('/media/tony/data/data/test_tracks/vertification/older_coords/vertifications/v1.csv')
+    #pd.DataFrame(validation_frames).to_csv('/media/tony/data/data/test_tracks/vertification/older_coords/vertifications/v1.csv')
     df_tracks['Correction']=[[] for i in range(len(df_tracks))]
     df_tracks['Matching_details']=[[] for i in range(len(df_tracks))]
     path=folder_path+'/matching_process_cage.csv'
@@ -547,7 +549,7 @@ def remove_match(df_tracks,frame,sort_id,rfid,correct_iou,ent_thres,entrance_rea
         index_checklist_f=[ind for ind,sids in enumerate(df_tracks.iloc[frame:]['track_id'].values) if sided in sids]
         index_checklist_b=list(reversed([ind for ind,sids in enumerate(df_tracks.iloc[:frame]['track_id'].values) if sided in sids]))
         df_tracks=remove_match_forward(df_tracks,frame,sided,index_checklist_f)
-        print(frame)
+        #print(frame)
         df_tracks,frame2stopmatch=remove_match_backward(df_tracks,sided,entrance_reader,RFID_coords,correct_iou,ent_thres,index_checklist_b,frame)
         id_correted={sort_id:None,sided:frame2stopmatch}
         return df_tracks,frame2stopmatch,id_correted
@@ -814,8 +816,10 @@ def get_tracked_activity(motion_status,motion_roi,RFID_tracks,tags):
 def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,ent_thres,n_mice,pathin):
     vid_path=pathin+'/raw.avi'
     combined_df=Combine_RFIDreads(df_tracks,df_RFID)
-    validation_frames=combined_df[combined_df.RFID_readings.notnull()].index
-    
+    if n_mice !=1:
+        validation_frames=combined_df[combined_df.RFID_readings.notnull()].index
+    else:
+        validation_frames=[]
     if entrance_reader is None:
         entrance_val=[]
     else:
@@ -922,7 +926,10 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
                 tracks[bbs[0]]=np.append(tracks[bbs[0]],[tracks_add],axis=0)
             pbar.update(1)
     combined_df['sort_tracks'] = tracks
-    combined_df=combined_df.drop(columns=['Time','RFID_readings'])
+    if n_mice != 1:
+        combined_df=combined_df.drop(columns=['Time','RFID_readings'])
+    else: 
+        combined_df=combined_df.drop(columns=['Time'])
     return combined_df
 
 
@@ -1325,6 +1332,8 @@ def match_left_over_tag(df,tags,config_dict_analysis):
                                         forward_rframe=index_check_list_ent_f[0]
                                     else:
                                         forward_rframe=index_checklist_id_marked_f[0]
+                            else:
+                                forward_rframe=index_checklist_id_marked_f[0]-1# too much uncertainity, pass matching process
                 df=RFID_SID_match(sid_left,index_checklist_f,forward_rframe,
                                df,readout,entrance_reader,RFID_coords,ent_thres,'forward',False,i)
             pbar.update(1)

@@ -21,7 +21,7 @@ class PSYCO:
         
         with open(path+'/'+'logs.txt','r') as f:
             tags=f.readlines()
-            self.tags=[i for i in tags[1][6:].split(',')]
+            self.tags=[int(i) for i in tags[1][6:].split(',')]
         self.config_path=config_path
         self.config_dic_analysis=analysis_config_loader(config_path)
         self.config_dic_detect=detect_config_loader(config_path)
@@ -72,13 +72,17 @@ class PSYCO:
             return self.df_tracks_out,self.validation_frames,coverage
         else:
             self.validation_frames=[]
-            self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
+            self.df_tracks['lost_tracks']=self.df_tracks['sort_tracks'].values
+            self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks,self.tags)
             self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
             if report_coverage:
                 coverage=mm.coverage(self.df_tracks_out)
             self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,0)
             self.df_tracks_out=self.df_tracks_out[['frame','Time','sort_tracks','RFID_tracks','ious_interaction','Interactions',
-                                                   'motion','motion_roi','RFID_readings','Correction','RFID_matched','Matching_details']]
+                                                   'motion','motion_roi','RFID_matched']]
+            self.df_tracks_out['Correction']=[[] for i in range(len(self.df_tracks_out))]
+            self.df_tracks_out['Matching_details']=[[] for i in range(len(self.df_tracks_out))]
+            self.df_tracks_out['RFID_readings']=[[] for i in range(len(self.df_tracks_out))]
             if save_csv:
                 self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
                 print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')

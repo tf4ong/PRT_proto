@@ -49,8 +49,8 @@ def bbox_area(bbox):
 def float_int(x):
     rounded=[]
     for i in x:
-        tracks=i[:4]
-        tracks.append(int(i[4]))
+        tracks=[int(f) for f in i]
+        #tracks.append(int(i[4]))
         rounded.append(tracks)
     return rounded
 
@@ -162,6 +162,10 @@ def detect_config_loader(path):
     config_dic['intensity_thres']=int(config.get(cfg, 'intensity_thres'))
     return config_dic
     
+
+def array2list(array):
+    return [i.tolist() for i in array]
+
 
 
 def tracking_config_loader(path):
