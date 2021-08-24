@@ -166,7 +166,7 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold = 0.05):#
 
 
 class Sort(object):
-  def __init__(self,max_age=45,min_hits=0,iou_threshold= 0.05):
+  def __init__(self,n_mice,max_age=45,min_hits=0,iou_threshold= 0.05):
     """
     Sets key parameters for SORT
     """
@@ -175,6 +175,7 @@ class Sort(object):
     self.trackers = []
     self.frame_count = 0
     self.iou_match_thres = iou_threshold
+    self.n_mice=n_mice
   def update(self,dets):
     """
     Params:
@@ -202,10 +203,7 @@ class Sort(object):
       self.trackers.pop(t)
     #matches preds to dets
     matched, unmatched_dets, unmatched_trks = associate_detections_to_trackers(dets,trks,iou_threshold=self.iou_match_thres)
-    unmatched_tracks=[]
-    if len(unmatched_trks) !=0:
-        for track_inde in unmatched_trks:
-            unmatched_tracks.append(trks[track_inde])
+
     for t,trk in enumerate(self.trackers):
       if(t not in unmatched_trks):
         d = matched[np.where(matched[:,1]==t)[0],0]
@@ -213,16 +211,34 @@ class Sort(object):
     for i in unmatched_dets:
         trk = KalmanBoxTracker(dets[i,:])
         self.trackers.append(trk)
+        #if self.frame_count >11050:
+        #    print(trk.id)
+        #    import sys
+        #    sys.exit()
+    #self modified
+    unmatched_tracks=[]
+    if len(unmatched_trks) !=0:
+        for track_inde in unmatched_trks:
+            unmatched_tracks.append(trks[track_inde])
+    #self_modified
     i = len(self.trackers)
     for trk in reversed(self.trackers):
         d = trk.get_state()[0]
-        if ((trk.time_since_update < 1) and (trk.hits >= self.min_hits or self.frame_count <= self.min_hits)):
+        if (trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
         i -= 1
         if(trk.time_since_update > self.max_age):
           self.trackers.pop(i)
     if(len(ret)>0):
       return np.concatenate(ret),np.asarray(unmatched_tracks)
+    if self.n_mice ==1:
+        if len(ret)==0 and len(dets) == 1:
+            #print(dets)
+            a=np.append(dets[0][:4],2)
+            #print(type(a))
+            #import sys
+            #sys.exit()
+            return np.asarray([a]),np.asarray(unmatched_tracks)
     return np.empty((0,5))
 
   def reset_count(self):

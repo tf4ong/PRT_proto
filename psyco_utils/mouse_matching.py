@@ -73,13 +73,14 @@ def RFID_readout(pathin,config_dict_analysis,n_mice):
             pass
     return df2
 
-def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_threshold):
+def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_threshold,n_mice):
     #memory issues?
     id_tracks=[]
     unmatched_predicts=[]
-    mot_tracker=Sort(max_age,min_hits,iou_threshold)
+    mot_tracker=Sort(n_mice,max_age,min_hits,iou_threshold)
     mot_tracker.reset_count()   
     pbar=tqdm(total=len(bboxes),position=0,leave=True,desc='Assigning Sort ID to bboxes')
+    count=0
     for i in bboxes:
         ds_boxes=np.asarray(i)
         sort_output= mot_tracker.update(ds_boxes)
@@ -98,8 +99,20 @@ def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_thres
                         np.delete(unmatched_predict,pred)
             unmatched_predicts.append(np.asarray(unmatched_predict))
         else:
-            id_tracks.append(np.asarray([]))
+            #if count >11050:
+            #    print(i)
+            #    print(sort_output)
+            #    #print()
             unmatched_predicts.append(np.asarray([]))
+            id_tracks.append(np.asarray([]))
+            
+        #if count > 11050:
+        #    print(i)
+        #    print(trackers)
+        #    print(unmatched_predict)
+        #    import sys
+        #    sys.exit()
+        count+=1
         pbar.update(1)
     return id_tracks,unmatched_predicts
 
@@ -129,7 +142,7 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
     if np.all(df_tracks.frame==0):
         df_tracks['frame']=[i+1 for i in range(len(df_tracks))]
     sort_tracks,unmatched_predicts=sort_tracks_generate(df_tracks['bboxes'].values,resolution,area_thresh,
-                                                        max_age,min_hits,iou_threshold)
+                                                        max_age,min_hits,iou_threshold,n_mice)
     df_tracks['unmatched_predicts']=unmatched_predicts
     #df_tracks['unmatched_predicts']=[float_int(x) for x in df_tracks['unmatched_predicts'].values]
     df_tracks['sort_tracks']=sort_tracks
@@ -855,7 +868,13 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
                     if len(tracks[i]) ==0:
                         current_ids=np.asarray([])
                     else:
-                        current_ids=tracks[i][:,4]
+                        try:
+                            current_ids=tracks[i][:,4]
+                        except Exception:
+                            print(tracks[i])
+                            print(type(tracks[i]))
+                            import sys
+                            sys.exit()
                     if len(tracks[i-1]) ==0:
                         prev_ids=np.asarray([])
                     else:    
@@ -900,6 +919,7 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
         if len(ent_count) ==3:
             ent_count=ent_count[1:]
         pbar.update(1)
+    
     msg='Inserting Kalmen filter predictions at frames with occlusions/yolov4 fails'
     pbar= tqdm(total=len(frames2check),position=0,leave=True,desc=msg)
     frames2extract=list(set([i[0] for i in frames2check]))

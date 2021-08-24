@@ -96,7 +96,9 @@ def generate_RFID_video(path,df_RFID,tags,df_tracks_out,validation_frames,config
                     xmin, ymin, xmax, ymax=v[0],v[1],v[2],v[3]
                     cv2.rectangle(blankimg, (xmin+100, ymin+100), (xmax+100, ymax+100), (0,0,0), 2)
                     cent_point=bbox_to_centroid(v)
-                    cv2.putText(blankimg,f"{str(i)}",(cent_point[0]+100,cent_point[1]+100),0, 5e-3 * 200,(0,0,0),2)
+                    #print(i)
+                    #print(cent_point[0])
+                    cv2.putText(blankimg,f"{str(i)}",(int(cent_point[0])+100,int(cent_point[1])+100),0, 5e-3 * 200,(0,0,0),2)
             if plot_motion:
                 if MS =='Motion':
                     for c in motion_rois[frame_count]:
@@ -227,7 +229,7 @@ def create_validation_Video(folder,df1,tags,config_dic,output=None):
                     xmin, ymin, xmax, ymax=v[0],v[1],v[2],v[3]
                     cv2.rectangle(img_rfid, (xmin, ymin), (xmax, ymax), (0,0,0), 2)
                     cent_point=bbox_to_centroid(v)
-                    cv2.putText(img_rfid,f"{str(i)}",(cent_point[0],cent_point[1]),0, 5e-3 * 200,(0,0,0),2)
+                    cv2.putText(img_rfid,f"{str(i)}",(int(cent_point[0]),int(cent_point[1])),0, 5e-3 * 200,(0,0,0),2)
             if 3*width +100<2800:
                 width_b=2300
             else:
