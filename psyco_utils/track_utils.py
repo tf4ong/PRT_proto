@@ -164,10 +164,6 @@ def detect_config_loader(path):
     
 
 def array2list(array):
-    if [i.tolist() for i in array] is None:
-        print(array)
-        import sys
-        sys.exit()
     return [i.tolist() for i in array]
 
 

@@ -890,8 +890,8 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
     msg='Checking Kalmen filter predictions at frames with occlusions/yolov4 fails'
     pbar= tqdm(total=len(frames2check),position=0,leave=True,desc=msg)
     frames2extract=list(set([i[0] for i in frames2check]))
-    if len(frames2extract)>500:
-        extract_sublists=list_split(frames2extract,500)
+    if len(frames2extract)>1000:
+        extract_sublists=list_split(frames2extract,1000)
         for frame_sublist in extract_sublists:
             vr = VideoReader(vid_path, ctx=cpu(0))
             frames = vr.get_batch(list(frame_sublist)).asnumpy()
@@ -924,6 +924,8 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
         frames = vr.get_batch(list(frames2extract)).asnumpy()
         for bbs in frames2check:
             frame_inde= list(frames2extract).index(bbs[0])
+            missing_bb=[strack for strack in tracks[i-1] if strack[4] == bbs[1][4]]
+            pred_cent=bbox_to_centroid(bbs[1])
             if not bb_contain_mice_check(frames[frame_inde],bbs[1],30):
                 temp_list=tracks[bbs[0]]
                 temp_list=[strack for strack in temp_list if strack != bbs[1]]
