@@ -164,6 +164,10 @@ def detect_config_loader(path):
     
 
 def array2list(array):
+    if [i.tolist() for i in array] is None:
+        print(array)
+        import sys
+        sys.exit()
     return [i.tolist() for i in array]
 
 
@@ -174,7 +178,7 @@ def tracking_config_loader(path):
     cfg = 'Tracking'
     config_dic={}
     config_dic['max_age']=int(config.get(cfg, 'max_age'))
-    config_dic['min_hits']=int(config.get(cfg, 'max_age'))
+    config_dic['min_hits']=int(config.get(cfg, 'min_hits'))
     config_dic['iou_threshold']= float(config.get(cfg, 'iou_threshold'))
     config_dic['interaction_thres']= float(config.get(cfg, 'interaction_thres'))
     config_dic['iou_min_sbb_checker']= float(config.get(cfg, 'iou_min_sbb_checker'))

@@ -87,31 +87,10 @@ def sort_tracks_generate(bboxes,resolution,area_thres,max_age,min_hits,iou_thres
         if len(sort_output) != 0:
             trackers,unmatched_predict=sort_output[0],sort_output[1]
             id_tracks.append(trackers)#.tolist())
-            if len(unmatched_predict) != 0:
-                for pred in unmatched_predict:
-                    pred_cent=bbox_to_centroid(pred)
-                    if pred_cent[0]>resolution[0] or pred_cent[0]<0 or \
-                        pred_cent[1]>resolution[1] or pred_cent[1]<0: # if centroid out of frame
-                        np.delete(unmatched_predict,pred)                        
-                    elif bbox_area(pred)<area_thres[0] or \
-                        bbox_area(pred)>area_thres[1]: # if area beyond thres
-                        #unmatched_predict.remove(pred)
-                        np.delete(unmatched_predict,pred)
             unmatched_predicts.append(np.asarray(unmatched_predict))
         else:
-            #if count >11050:
-            #    print(i)
-            #    print(sort_output)
-            #    #print()
             unmatched_predicts.append(np.asarray([]))
             id_tracks.append(np.asarray([]))
-            
-        #if count > 11050:
-        #    print(i)
-        #    print(trackers)
-        #    print(unmatched_predict)
-        #    import sys
-        #    sys.exit()
         count+=1
         pbar.update(1)
     return id_tracks,unmatched_predicts
@@ -137,7 +116,7 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
     df_tracks=pd.read_csv(pathin+'/'+'yolo_dets.csv',converters=dics)
     bboxes=[track for track_list in df_tracks['bboxes'].values for track in track_list]
     areas=[bbox_area(bbox) for bbox in bboxes]
-    area_thresh=[0.75*min(areas),1.1*max(areas)]
+    area_thresh=[0.75*min(areas),max(areas)]
     df_tracks['bboxes']=[mouse_limiter(bbs,n_mice) for bbs in df_tracks['bboxes'].values]
     if np.all(df_tracks.frame==0):
         df_tracks['frame']=[i+1 for i in range(len(df_tracks))]
@@ -148,8 +127,8 @@ def read_yolotracks(pathin,config_dict_analysis,config_dict_tracking,df_RFID,n_m
     df_tracks['sort_tracks']=sort_tracks
     #df_tracks['sort_tracks']=[float_int(x) for x in df_tracks['sort_tracks'].values]
     df_tracks=bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,
-                           ent_time,interaction_thres,ent_thres,n_mice,pathin)
-    df_tracks['sort_tracks']=df_tracks['sort_tracks'].apply(array2list)
+                           ent_time,interaction_thres,ent_thres,n_mice,pathin,area_thresh,resolution)
+    #df_tracks['sort_tracks']=df_tracks['sort_tracks'].apply(array2list)
     df_tracks['sort_tracks']=[float_int(x) for x in df_tracks['sort_tracks'].values]
     if entrance_reader is None:
         pass
@@ -826,7 +805,7 @@ def get_tracked_activity(motion_status,motion_roi,RFID_tracks,tags):
 
 
 
-def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,ent_thres,n_mice,pathin):
+def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,ent_thres,n_mice,pathin,area_thres,resolution):
     vid_path=pathin+'/raw.avi'
     combined_df=Combine_RFIDreads(df_tracks,df_RFID)
     if n_mice !=1:
@@ -841,7 +820,6 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
     entrance_times.sort()
     entrance_times=np.asarray(entrance_times)
     ent_count = [0]
-    
     time_list=combined_df['Time'].values
     tracks=combined_df['sort_tracks'].values
     tracks_pred=combined_df['unmatched_predicts'].values
@@ -850,21 +828,8 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
     frames2check=[]
     for i in range(len(combined_df)):
         if i!=0:
-            t=time_list[i]
-            if entrance_reader is None:
-                    ent_count.append(0) # can't be close to entrance, because there is no entrance.
-                    time_threshs=[]
-            else:
-                if len(tracks[i]) !=0:
-                    ent_count_tem = [distance_to_entrance(bbox,RFID_coords,entrance_reader) for bbox in tracks[i]]
-                    ent_count_tem = len([dist for dist in ent_count_tem if dist <ent_thres])
-                else:
-                    ent_count_tem=0
-                ent_count.append(ent_count_tem)
-                time_threshs= entrance_times-t 
-                #sys.exit()
-            if tracks[i].shape[0] > tracks[i-1].shape[0]:
-                if meet_criteria_trigger(tracks[i],tracks[i-1],i,ent_count,time_threshs) or n_mice==1:
+            if tracks[i].shape[0] < tracks[i-1].shape[0]:
+                if True:
                     if len(tracks[i]) ==0:
                         current_ids=np.asarray([])
                     else:
@@ -891,59 +856,92 @@ def bbox_revised(df_tracks,df_RFID,RFID_coords,entrance_reader,thresh,threshold,
                             iou_list=[iou(strack, strack_m) for strack_m in missing_bb]
                             iou_list=[inde_val for inde_val, iou_val in enumerate(iou_list) if iou_val>0.5]
                             if len(iou_list)>0:
-                                #if bb_contain_mice_check(i,strack,vid_path,30):
                                     if len(tracks[i])+1<= n_mice:
                                         if entrance_reader is None:
-                                            #track_add=strack[:4]+[int(missing_bb[max(iou_list)][4])]
-                                            #current_tracks.append(track_add)
+                                            tracks_add=np.append(strack[:4],int(missing_bb[max(iou_list)][4]))
+                                            tracks[i]=np.append(tracks[i],[tracks_add],axis=0)
+                                            frames2check.append([i,tracks_add.tolist()])
                                             missing_bb.pop(max(iou_list))
-                                            frames2check.append([i,strack,int(missing_bb[max(iou_list)][4])])
                                         else:
-                                            if distance_to_entrance(strack,RFID_coords,entrance_reader) >ent_thres:
-                                                frames2check.append([i,strack,int(missing_bb[max(iou_list)][4])])
+                                            if distance_to_entrance(strack,RFID_coords,entrance_reader) >ent_thres+20:
+                                                tracks_add=np.append(strack[:4],int(missing_bb[max(iou_list)][4]))
+                                                tracks[i]=np.append(tracks[i],[tracks_add],axis=0)
+                                                frames2check.append([i,tracks_add.tolist()])
                                                 missing_bb.pop(max(iou_list))
+                                    #####use in second pipeline
                                     else:#just uses previous frame's predict for it 
                                         if entrance_reader is None:
                                             if len(tracks[i])+1<= n_mice:
                                                 track_add= [strack2 for strack2 in missing_bb if strack2[4]==int(missing_bb[max(iou_list)][4])][0]
-                                                frames2check.append([i,track_add,track_add[4]])
+                                                #frames2check.append([i,track_add,track_add[4]])
+                                                tracks[i]=np.append(tracks[i],[tracks_add],axis=0)
+                                                frames2check.append([i,tracks_add.tolist()])
                                                 missing_bb.pop(max(iou_list))
                                         else:
                                             if len(tracks[i])+1<= n_mice:
-                                                if distance_to_entrance(strack,RFID_coords,entrance_reader) >ent_thres:
+                                                if distance_to_entrance(strack,RFID_coords,entrance_reader) >ent_thres+20:
                                                     track_add= [strack2 for strack2 in missing_bb if strack2[4]==int(missing_bb[max(iou_list)][4])][0]
-                                                    frames2check.append([i,track_add,track_add[4]])
+                                                    tracks[i]=np.append(tracks[i],[tracks_add],axis=0)
+                                                    frames2check.append([i,tracks_add.tolist()])
                                                     missing_bb.pop(max(iou_list))
-                                        #if entrance_reader is None:
-                                        #    track_add=strack[:4]+[int(missing_bb[max(iou_list)][4])]
-        if len(ent_count) ==3:
-            ent_count=ent_count[1:]
         pbar.update(1)
-    
-    msg='Inserting Kalmen filter predictions at frames with occlusions/yolov4 fails'
+    tracks=[array2list(t) for t in tracks]
+
+    msg='Checking Kalmen filter predictions at frames with occlusions/yolov4 fails'
     pbar= tqdm(total=len(frames2check),position=0,leave=True,desc=msg)
     frames2extract=list(set([i[0] for i in frames2check]))
-    if len(frames2extract)>100:
-        extract_sublists=list_split(frames2extract,100)
+    if len(frames2extract)>500:
+        extract_sublists=list_split(frames2extract,500)
         for frame_sublist in extract_sublists:
             vr = VideoReader(vid_path, ctx=cpu(0))
             frames = vr.get_batch(list(frame_sublist)).asnumpy()
             frame_check=[bb_predicts for bb_predicts in frames2check if bb_predicts[0] in frame_sublist]
             for bbs in frame_check:
                 frame_inde= list(frame_sublist).index(bbs[0])
-                if bb_contain_mice_check(frames[frame_inde],bbs[1],30):
-                    tracks_add=np.append(bbs[1][:4],bbs[2])
-                    tracks[bbs[0]]=np.append(tracks[bbs[0]],[tracks_add],axis=0)
+                missing_bb=[strack for strack in tracks[i-1] if strack[4] == bbs[1][4]]
+                pred_cent=bbox_to_centroid(bbs[1])
+                if not bb_contain_mice_check(frames[frame_inde],bbs[1],30):
+                    temp_list=tracks[bbs[0]]
+                    temp_list=[strack for strack in temp_list if strack != bbs[1]]
+                    if len(missing_bb) !=0 :
+                        temp_list.append(missing_bb[0])
+                    tracks[bbs[0]]=temp_list
+                elif bbox_area(bbs[1])<area_thres[0] or bbox_area(bbs[1])>area_thres[1]:
+                    temp_list=tracks[bbs[0]]
+                    temp_list=[strack for strack in temp_list if strack != bbs[1]]
+                    if len(missing_bb) !=0 :
+                        temp_list.append(missing_bb[0].tolist())
+                    tracks[bbs[0]]=temp_list
+                elif pred_cent[0]>resolution[0] or pred_cent[0]<0 or pred_cent[1]>resolution[1] or pred_cent[1]<0:
+                    temp_list=tracks[bbs[0]]
+                    temp_list=[strack for strack in temp_list if strack != bbs[1]]
+                    if len(missing_bb) !=0 :
+                        temp_list.append(missing_bb[0])
+                    tracks[bbs[0]]=temp_list
                 pbar.update(1)
     else:
         vr = VideoReader(vid_path, ctx=cpu(0))
         frames = vr.get_batch(list(frames2extract)).asnumpy()
         for bbs in frames2check:
             frame_inde= list(frames2extract).index(bbs[0])
-            if bb_contain_mice_check(frames[frame_inde],bbs[1],30):
-                tracks_add=np.append(bbs[1][:4],bbs[2])
-                #print(tracks_add)
-                tracks[bbs[0]]=np.append(tracks[bbs[0]],[tracks_add],axis=0)
+            if not bb_contain_mice_check(frames[frame_inde],bbs[1],30):
+                temp_list=tracks[bbs[0]]
+                temp_list=[strack for strack in temp_list if strack != bbs[1]]
+                if len(missing_bb) !=0 :
+                    temp_list.append(missing_bb[0])
+                tracks[bbs[0]]=temp_list
+            elif bbox_area(bbs[1])<area_thres[0] or bbox_area(bbs[1])>area_thres[1]:
+                temp_list=tracks[bbs[0]]
+                temp_list=[strack for strack in temp_list if strack != bbs[1]]
+                if len(missing_bb) !=0 :
+                    temp_list.append(missing_bb[0])
+                tracks[bbs[0]]=temp_list
+            elif pred_cent[0]>resolution[0] or pred_cent[0]<0 or pred_cent[1]>resolution[1] or pred_cent[1]<0:
+                temp_list=tracks[bbs[0]]
+                temp_list=[strack for strack in temp_list if strack != bbs[1]]
+                if len(missing_bb) !=0 :
+                    temp_list.append(missing_bb[0])
+                tracks[bbs[0]]=temp_list
             pbar.update(1)
     combined_df['sort_tracks'] = tracks
     if n_mice != 1:
