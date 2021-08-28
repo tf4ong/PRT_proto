@@ -1,7 +1,7 @@
 import cv2
 import pandas as pd
 import numpy as np
-from track_utils import *
+from psyco_utils.track_utils import *
 from absl import app, flags, logging
 from absl.flags import FLAGS
 from tqdm import tqdm 

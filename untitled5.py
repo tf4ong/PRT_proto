@@ -50,6 +50,11 @@ for p in paths:
     
 
     
+
+list(map(lambda x: traja_process(x),df_test))
+df_test
+
+
 df1=pd.read_csv('/media/tony/data/data/Pre_stroke/D1/trajectories/1/track_0.csv')
 df1=pd.read_csv('/media/tony/data/data/Pre_stroke/D1/trajectories/1/track_1.csv')
 

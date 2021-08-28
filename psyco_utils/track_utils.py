@@ -61,7 +61,7 @@ def bbox_to_centroid(bbox):
     if bbox!=[]:
         cX=(bbox[0]+bbox[2])/2
         cY=(bbox[1]+bbox[3])/2
-        return [cX,cY]
+        return [int(cX),int(cY)]
     else:
         return []
 

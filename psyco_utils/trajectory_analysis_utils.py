@@ -5,6 +5,7 @@ import math
 import cv2
 from psyco_utils.track_utils import *
 from collections import ChainMap
+import traja
 
 def get_track(tracks,tag):
     tag_track=[v for v in tracks if v[4]==tag]
@@ -25,35 +26,54 @@ def elist2nan(x):
     return x
 
 
-def location_compiler(tag,df,lim=5):
+def location_compiler(tag,df,dlc=False,lim=5):
+    frames=df.frame.values
     tag_tracks=[get_track(track,tag) for track in df.RFID_tracks.values]
     tag_activity=[activity[tag] for activity in df.Activity]
     tag_xcoord=[bbox_to_centroid(v)[0] if v != [] else [] for v in tag_tracks]
     tag_ycoord=[bbox_to_centroid(v)[1] if v!= [] else [] for v in tag_tracks]
-    columns=['Timestamp','Tracks','Centroid_X','Centroid_Y','Activity']
-    df_tag=pd.DataFrame(list(zip(df.Time,tag_tracks,tag_xcoord,tag_ycoord,tag_activity))
-                        ,columns=columns)
-    df_tag.Centroid_X=df_tag.Centroid_X.apply(lambda y: np.nan if y==[] else y)
-    df_tag.Centroid_Y=df_tag.Centroid_Y.apply(lambda y: np.nan if y==[] else y)
+    if dlc:
+        tag_bpts=[v for v in df[f'{str(tag)}_bpts']]
+        columns=['Timestamp','frame','Tracks','x','y','Activity','bpts']
+        df_tag=pd.DataFrame(list(zip(df.Time,frames,tag_tracks,tag_xcoord,tag_ycoord,tag_activity,
+                                     tag_bpts)),columns=columns)
+    else:
+        columns=['Timestamp','frame','Tracks','x','y','Activity']
+        df_tag=pd.DataFrame(list(zip(df.Time,frames,tag_tracks,tag_xcoord,tag_ycoord,tag_activity)),
+                            columns=columns)
+    df_tag['x']=df_tag.x.apply(lambda y: np.nan if y==[] else y)
+    df_tag['y']=df_tag.y.apply(lambda y: np.nan if y==[] else y)
     df_tag['x1']=df_tag.Tracks.apply(lambda y: np.nan if y==[] else y[0])
     df_tag['y1']=df_tag.Tracks.apply(lambda y: np.nan if y==[] else y[1])
     df_tag['x2']=df_tag.Tracks.apply(lambda y: np.nan if y==[] else y[2])
     df_tag['y2']=df_tag.Tracks.apply(lambda y: np.nan if y==[] else y[3])
-    df_tag.Centroid_X=round(df_tag.Centroid_X.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
-    df_tag.Centroid_Y=round(df_tag.Centroid_Y.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
+    df_tag['x']=round(df_tag.x.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
+    df_tag['y']=round(df_tag.y.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
     df_tag.x1=round(df_tag.x1.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
     df_tag.y1=round(df_tag.y1.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
     df_tag.x2=round(df_tag.x2.interpolate(method ='linear',limit_direction ='both', limit = lim)) 
     df_tag.y2=round(df_tag.y2.interpolate(method ='linear',limit_direction ='both', limit = lim))
     df_tag['frame']=df.frame.values
-    df_tag=df_tag[['Timestamp','frame','Tracks','Centroid_X','Centroid_Y','Activity']]
-    ds=np.split(df_tag,np.where(np.isnan(df_tag.Centroid_X))[0])
+    if dlc:
+        df_tag=df_tag[['Timestamp','frame','Tracks','x','y','Activity','bpts']]
+    else:
+        df_tag=df_tag[['Timestamp','frame','Tracks','x','y','Activity']]
+    ds=np.split(df_tag,np.where(np.isnan(df_tag.x))[0])
     ds=[t.drop(t.index[0]) for t in ds if len(t)>1]
     ds=[elist2nan(df) for df in ds]
     ds=[remove_pricdictions(df) for df in ds]
     ds=[t.drop(columns=['Tracks']) for t in ds]
+    ds=list(map(lambda x: traja_process(x),ds))
     return ds
 
+
+
+def traja_process(df):
+    df_speed=df.traja.get_derivatives()
+    df_speed['frame']=df.frame.values
+    df.traja.calc_turn_angle()
+    trajecs=pd.merge(df,df_speed,on='frame')
+    return trajecs
 
 #### maybe can increase accuracy afterwards
 

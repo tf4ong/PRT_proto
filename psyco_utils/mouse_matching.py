@@ -558,7 +558,10 @@ def remove_match(df_tracks,frame,sort_id,rfid,correct_iou,ent_thres,entrance_rea
         if frame2stopmatch1 != frame2stopmatch2:
             sort_id_list=[sort_id,frame2stopmatch2,index_checklist_b2]
             sided_list=[sided,frame2stopmatch1,index_checklist_b1]
-            df_tracks,frame2stopmatch=remove_match_revised(df_tracks,sort_id_list,sided_list,correct_iou,entrance_reader,ent_thres,RFID_coords)
+            if frame2stopmatch1 ==frame or frame2stopmatch2 ==frame:
+                frame2stopmatch=min(frame2stopmatch1,frame2stopmatch2)
+            else:
+                df_tracks,frame2stopmatch=remove_match_revised(df_tracks,sort_id_list,sided_list,correct_iou,entrance_reader,ent_thres,RFID_coords)
         else:
             frame2stopmatch=frame2stopmatch1
         id_correted={sort_id:frame2stopmatch,sided:frame2stopmatch}
@@ -1136,14 +1139,17 @@ def remove_match_revised2(df_tracks,sort_id_list,sided_list,correct_iou,entrance
     #get the true frame to revised/correct until
     #sort_id_list has the higher frame2stop at 
     # check if at frame~= sided frane2stop iou 
-    frame2check=min(sort_id_list[2], key=lambda x:abs(x-sided_list[1]))
-    frame_iou=[ind for ind,iou in df_tracks.iloc[frame2check]['ious'].items() 
-               if sort_id_list[0] in ind and iou>correct_iou]
-    #nothing > correct iou
-    if len(frame_iou)==0:
-        revise=True
+    if len(sort_id_list[2])!=0:
+        frame2check=min(sort_id_list[2], key=lambda x:abs(x-sided_list[1]))
+        frame_iou=[ind for ind,iou in df_tracks.iloc[frame2check]['ious'].items() 
+                   if sort_id_list[0] in ind and iou>correct_iou]
+        #nothing > correct iou
+        if len(frame_iou)==0:
+            revise=True
+        else:
+            #can further trace back
+            revise=False
     else:
-        #can further trace back
         revise=False
     if revise:
        #try:
@@ -1314,6 +1320,8 @@ def match_left_over_tag(df,tags,config_dict_analysis):
                                         backward_rframe=index_check_list_ent_b[0]
                                     else:
                                         backward_rframe=index_checklist_id_marked_b[0]
+                                else:
+                                    backward_rframe=index_checklist_id_marked_b[0]
                             else:
                                 backward_rframe=index_checklist_b[0]+1# too much uncertainity, pass matching process
                 df=RFID_SID_match(sid_left,index_checklist_b,backward_rframe,
@@ -1352,6 +1360,8 @@ def match_left_over_tag(df,tags,config_dict_analysis):
                                         forward_rframe=index_check_list_ent_f[0]
                                     else:
                                         forward_rframe=index_checklist_id_marked_f[0]
+                                else:
+                                    forward_rframe=index_checklist_id_marked_f[0]
                             else:
                                 forward_rframe=index_checklist_id_marked_f[0]-1# too much uncertainity, pass matching process
                 df=RFID_SID_match(sid_left,index_checklist_f,forward_rframe,

@@ -8,6 +8,7 @@ import itertools
 from psyco_utils.generate_vid import generate_RFID_video,create_validation_Video
 from psyco_utils.detect_utils import yolov4_detect
 from collections import ChainMap
+from tqdm import tqdm
 import time
 import warnings
 warnings.filterwarnings("ignore")
@@ -46,9 +47,6 @@ class PSYCO:
     def load_dets(self):
         self.df_tracks=mm.read_yolotracks(self.path,self.config_dic_analysis,self.config_dic_tracking,
                                           self.df_RFID,len(self.tags))
-        self.df_tracks.to_csv('test.csv')
-        import sys
-        sys.exit()
         if self.config_dic_analysis['entrance_reader'] is None:
             self.df_tracks=mm.reconnect_tracks_ofa(self.df_tracks,len(self.tags))
             pass
@@ -129,12 +127,13 @@ class PSYCO:
         self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
         return 
 
-    def compile_travel_trjectories(self):
-        print('Generating Individual Rodent Trajectory')
+    def compile_travel_trjectories(self,dlc=False):
+        msg='Generating Individual Rodent Trajectory'
+        pbar=tqdm(total=len(self.tags),position=0,leave=True,desc=msg)
         if not os.path.exists(self.path+'/trajectories'):
             os.mkdir(self.path+'/trajectories')
         for tag in self.tags:
-            list_df=ta.location_compiler(tag,self.df_tracks_out,lim=5)
+            list_df=ta.location_compiler(tag,self.df_tracks_out,dlc,lim=5)
             if not os.path.exists(self.path+'/trajectories'+f'/{tag}'):
                 os.mkdir(self.path+'/trajectories'+f'/{tag}')
             count=0
@@ -142,6 +141,7 @@ class PSYCO:
                 for tracks in list_df:
                     tracks.to_csv(self.path+'/trajectories'+f'/{tag}'+f'/track_{count}.csv')
                     count+=1
+            pbar.update(1)
         return 
 
     def generate_labeled_video(self,dlc_bpts=False,plot_motion=False,out_folder=None):
