@@ -66,6 +66,11 @@ def location_compiler(tag,df,dlc=False,lim=5):
     ds=list(map(lambda x: traja_process(x),ds))
     return ds
 
+def get_bpt(bpts,bpt_int):
+    if bpts ==[]:
+        return []
+    else:
+        return [bpt for bpt in bpts if bpt[2]== bpt_int]
 
 
 def traja_process(df):

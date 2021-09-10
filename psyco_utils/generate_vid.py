@@ -227,9 +227,9 @@ def create_validation_Video(folder,df1,tags,config_dic,output=None):
             for i,v in RFID_coords.items():
                 if i!=entrance_reader:
                     xmin, ymin, xmax, ymax=v[0],v[1],v[2],v[3]
-                    cv2.rectangle(img_rfid, (xmin, ymin), (xmax, ymax), (0,0,0), 2)
+                    cv2.rectangle(img_rfid, (xmin, ymin), (xmax, ymax), (0,0,255), 3)
                     cent_point=bbox_to_centroid(v)
-                    cv2.putText(img_rfid,f"{str(i)}",(int(cent_point[0]),int(cent_point[1])),0, 5e-3 * 200,(0,0,0),2)
+                    cv2.putText(img_rfid,f"{str(i)}",(int(cent_point[0]),int(cent_point[1])),0, 5e-3 * 200,(0,0,255),3)
             if 3*width +100<2800:
                 width_b=2300
             else:

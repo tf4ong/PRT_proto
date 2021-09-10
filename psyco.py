@@ -1,6 +1,7 @@
 import pandas as pd 
 from psyco_utils import mouse_matching as mm
 import os
+import numpy as np
 import psyco_utils.trajectory_analysis_utils as ta
 import sys
 from psyco_utils.track_utils import *
@@ -65,6 +66,9 @@ class PSYCO:
                                                                        self.path)
             self.df_tracks_out=mm.match_left_over_tag(self.df_tracks_out,self.tags,self.config_dic_analysis)
             self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
+            self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,0)
+            self.df_tracks_out=self.df_tracks_out[['frame','Time','sort_tracks','RFID_tracks','ious_interaction','Interactions',
+                                                   'motion','motion_roi','RFID_matched']]
             if save_csv:
                 self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
                 #print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
@@ -139,8 +143,22 @@ class PSYCO:
             count=0
             if list_df != []:
                 for tracks in list_df:
+                    if dlc:
+                        for dbpt in self.config_dic_dlc['dbpt']:
+                            tracks[dbpt]=tracks['bpts'].apply(lambda x: ta.get_bpt(x, dbpt))
+                            tracks[f'{dbpt}_x']=[i[0][0] if len(i)>0 else np.nan for i in tracks[dbpt]]
+                            tracks[f'{dbpt}_y']=[i[0][1] if len(i)>0 else np.nan for i in tracks[dbpt]]
+                            tracks=tracks.drop(columns=[dbpt])
                     tracks.to_csv(self.path+'/trajectories'+f'/{tag}'+f'/track_{count}.csv')
                     count+=1
+                df_t=self.df_tracks_out[['Time','frame']]
+                df_tag=pd.concat(list_df)
+                df_tag=df_tag.sort_values(by=['frame'])
+                df_tag_c=pd.merge(df_t,df_tag,on='frame',how='outer')
+                df_itc=mm.itc_duration(self.df_tracks_out,tag,self.tags)
+                df_tag_c=pd.merge(df_tag_c,df_itc,on='frame',how='outer')
+                df_tag_c.loc[df_tag_c.isnull().any(axis=1), :] = np.nan
+                df_tag_c.to_csv(self.path+'/'+f'{tag}.csv')
             pbar.update(1)
         return 
 

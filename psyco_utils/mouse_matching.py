@@ -24,10 +24,14 @@ def RFID_readout(pathin,config_dict_analysis,n_mice):
         1.pathin: path of the rfid files ( data_all.csv and text.csv)
         2. ent_entrance reader number
     """
+    #add datetime backin 
     if n_mice != 1:
         ent_reader=config_dict_analysis['entrance_reader']
         time_thresh=config_dict_analysis['entrance_time_thres']
-        df1=pd.read_csv(f'{pathin}/text.csv')
+        try:
+            df1=pd.read_csv(f'{pathin}/text.csv')
+        except Exception:
+            df1=pd.read_csv(f'{pathin}/RFID_reads.csv',index_col=False)
         df2=pd.read_csv(f'{pathin}/RFID_data_all.csv',index_col=False)
         df2.Time=pd.to_datetime(df2['Time'],format="%Y-%m-%d_%H:%M:%S.%f")
         df1.Timestamp=pd.to_datetime(df1['Timestamp'],format="%Y-%m-%d %H:%M:%S.%f")
@@ -408,7 +412,7 @@ def coverage(df):#,ent_thres,entrance_reader,RFID_coords):
     a=sum([len(i) for i in df.RFID_tracks])
     b=sum([len(i) for i in df.sort_tracks])
     cov=a/b*100
-    print(cov)
+    print(f'{cov} % of mice detected were matched with an RFID tag')
     return cov
 
 
@@ -736,6 +740,7 @@ def tag_left_recover_simp(df,tags):
                 matched_id=[df.iloc[i].lost_tracks[0][4],tag_left,'Leftover Matched']
                 df.iloc[i]['RFID_matched']+= [matched_id]
             pbar.update(1)
+    df['lost_tracks']=df.apply(lambda x:get_lost_tracks(x['sort_tracks'],x['RFID_tracks']),axis=1)
     return df
 
 def rfid2bpts(bpts,RFIDs,slack,bpt2look=['snout','tail_base']):
@@ -1521,10 +1526,18 @@ def get_iou_list_b(df,frame,sid, correct_iou, limit=None):
 
 
 def sid_left_list(frame_list,df):
-    return [df.iloc[frame].lost_tracks[0][4] for frame in frame_list ]
+    """
+    Part of refine_frame_left_list
+    """
+    return [df.iloc[frame].lost_tracks[0][4] for frame in frame_list]
 
 
 def refine_frame_left_list(index_list,df):
+    """
+    reduced number of frames to do last tag match
+    groups consecutive frames togeather and return the first of each 
+    consecutive frames
+    """
     from operator import itemgetter
     from itertools import groupby
     groups=[list(map(itemgetter(1), g)) for k, g in groupby(enumerate(index_list), lambda x: x[0]-x[1])]
@@ -1539,7 +1552,31 @@ def refine_frame_left_list(index_list,df):
     return frames
 
 
-
+def itc_duration(df,tag,tags):
+    mice_list=[ta for ta in tags if ta!=tag]
+    mice_list.append('UK')
+    data=[]
+    durations=df.Time.diff()
+    ita_status=[mice[tag] for mice in df.Interactions]
+    for ta in mice_list:
+        values= np.array([1 if ta in i else 0 for i in ita_status])
+        values=values[:-1]*durations[1:]
+        values=np.append(values,np.nan)
+        data.append(values)
+    alone=[]
+    for i in range(len(df.frame.values)):
+        if i != len(df.frame.values):
+            itc=[data[z][i]==0 for z in range(len(data))]
+        if np.all(itc):
+            alone.append(1)
+        else:
+            alone.append(0)
+    alone=np.asarray(alone)[:-1]*durations[1:]
+    alone=np.append(alone,np.nan)
+    df_dic={i:z for i,z in zip(mice_list,data)}
+    df_dic['alone']=alone
+    df_dic['frame']=df.frame.values
+    return pd.DataFrame(df_dic)
 
 
 
