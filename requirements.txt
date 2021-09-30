@@ -23,6 +23,5 @@ matplotlib
 easydict
 pillow
 traja
-smbus
-pyserial
 decord
+
