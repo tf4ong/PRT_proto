@@ -20,7 +20,6 @@ may need adiitionl methods.
 class PSYCO:
     def __init__(self,path,config_path):
         self.path=path 
-        
         with open(path+'/'+'logs.txt','r') as f:
             tags=f.readlines()
             self.tags=[int(i) for i in tags[1][6:].split(',')]
@@ -29,6 +28,22 @@ class PSYCO:
         self.config_dic_detect=detect_config_loader(config_path)
         self.config_dic_tracking=tracking_config_loader(config_path)
         self.config_dic_dlc=dlc_config_loader(config_path)
+        if os.path.exists(self.path+'/RFID_tracks.csv'):
+            print('Already analyzed. Found RFID_tracks.csv file in path')
+            self.load_data()
+            #reload=input('Load analyzed data? Y/N')
+            #if reload.lower() =='y':
+            #    self.load_data()
+            #else:
+            #    pass
+        return
+    def load_data(self):
+        convert_dict={'sort_tracks':eval,'RFID_tracks':eval,'ious_interaction':eval,
+                      'Interactions':eval,'motion_roi':eval,'RFID_matched':eval,
+                      'Activity':eval}
+        self.df_tracks_out=pd.read_csv(self.path+'/RFID_tracks.csv',converters=convert_dict)
+        print(f'Loaded RFID_tracks.csv at path {self.path}')
+        return
     def detect_mice(self,write_vid=False):
         yolov4_detect(self.path,self.config_dic_detect,write_vid)
         return
@@ -66,9 +81,10 @@ class PSYCO:
                                                                        self.path)
             self.df_tracks_out=mm.match_left_over_tag(self.df_tracks_out,self.tags,self.config_dic_analysis)
             self.df_tracks_out=mm.tag_left_recover_simp(self.df_tracks_out,self.tags)
-            self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,0)
+            self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,self.config_dic_analysis['itc_slack'])
             self.df_tracks_out=self.df_tracks_out[['frame','Time','sort_tracks','RFID_tracks','ious_interaction','Interactions',
-                                                   'motion','motion_roi','RFID_matched']]
+                                                   'motion','motion_roi','RFID_matched','RFID_readings','Correction',
+                                                   'Matching_details']]
             if save_csv:
                 self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
                 #print(f'csv file saved at {self.path+"/RFID_tracks.csv"}')
@@ -82,7 +98,7 @@ class PSYCO:
             self.df_tracks_out.to_csv(self.path+'/RFID_tracks.csv')
             if report_coverage:
                 coverage=mm.coverage(self.df_tracks_out)
-            self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,0)
+            self.df_tracks_out=mm.interaction2dic(self.df_tracks_out,self.tags,self.config_dic_analysis['itc_slack'])
             self.df_tracks_out=self.df_tracks_out[['frame','Time','sort_tracks','RFID_tracks','ious_interaction','Interactions',
                                                    'motion','motion_roi','RFID_matched']]
             self.df_tracks_out['Correction']=[[] for i in range(len(self.df_tracks_out))]
@@ -111,6 +127,10 @@ class PSYCO:
         df_bpts['frame']=range(len(df_bpts))
         df_bpts=df_bpts.drop(columns=self.config_dic_dlc['dbpt'])
         columns=['bboxes']
+        #self.df_tracks_out.to_csv('test.csv')
+        self.df_tracks_out=self.df_tracks_out[['frame', 'Time','sort_tracks', 'RFID_tracks', 
+                                               'ious_interaction', 'Interactions','motion', 
+                                               'motion_roi', 'RFID_matched', 'Activity']]
         self.df_tracks_out=pd.merge( self.df_tracks_out,df_bpts, on='frame')
         dbpts=[mm.rfid2bpts(bpts,RFIDs,self.config_dic_dlc['dbpt_box_slack'],bpt2look=self.config_dic_dlc['dbpt_distance_compute']) 
                for bpts,RFIDs in zip(self.df_tracks_out['bpts'].values,self.df_tracks_out['RFID_tracks'].values)]
@@ -142,13 +162,9 @@ class PSYCO:
                 os.mkdir(self.path+'/trajectories'+f'/{tag}')
             count=0
             if list_df != []:
+                if dlc: 
+                    list_df=list(map(ta.dbpts2xy,[[self.config_dic_dlc['dbpt'],df] for df in list_df]))
                 for tracks in list_df:
-                    if dlc:
-                        for dbpt in self.config_dic_dlc['dbpt']:
-                            tracks[dbpt]=tracks['bpts'].apply(lambda x: ta.get_bpt(x, dbpt))
-                            tracks[f'{dbpt}_x']=[i[0][0] if len(i)>0 else np.nan for i in tracks[dbpt]]
-                            tracks[f'{dbpt}_y']=[i[0][1] if len(i)>0 else np.nan for i in tracks[dbpt]]
-                            tracks=tracks.drop(columns=[dbpt])
                     tracks.to_csv(self.path+'/trajectories'+f'/{tag}'+f'/track_{count}.csv')
                     count+=1
                 df_t=self.df_tracks_out[['Time','frame']]
@@ -157,19 +173,18 @@ class PSYCO:
                 df_tag_c=pd.merge(df_t,df_tag,on='frame',how='outer')
                 df_itc=mm.itc_duration(self.df_tracks_out,tag,self.tags)
                 df_tag_c=pd.merge(df_tag_c,df_itc,on='frame',how='outer')
-                df_tag_c.loc[df_tag_c.isnull().any(axis=1), :] = np.nan
+                df_tag_c.iloc[np.where(df_tag_c['x'].isnull())[0],4:]=np.nan
+                #df_tag_c.loc[df_tag_c.isnull().any(axis=1), :] = np.nan
                 df_tag_c.to_csv(self.path+'/'+f'{tag}.csv')
             pbar.update(1)
         return 
-
+    
     def generate_labeled_video(self,dlc_bpts=False,plot_motion=False,out_folder=None):
         generate_RFID_video(self.path,self.df_RFID,self.tags,self.df_tracks_out,\
                                self.validation_frames,self.config_dic_analysis,self.config_dic_dlc,plot_motion,out_folder=out_folder)
         
     def generate_validation_video(self,out_folder='None'):
         create_validation_Video(self.path,self.df_tracks_out,self.tags,self.config_dic_analysis,output=None)
-        
-        
-        
-        
-        
+    
+    
+    

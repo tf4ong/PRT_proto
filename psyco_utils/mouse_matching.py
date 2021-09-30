@@ -1551,6 +1551,8 @@ def refine_frame_left_list(index_list,df):
         frames=sorted(frames)
     return frames
 
+def get_itc_count(n,na_itc):
+    return np.asarray([1 if i== n else 0 for i in na_itc])
 
 def itc_duration(df,tag,tags):
     mice_list=[ta for ta in tags if ta!=tag]
@@ -1574,9 +1576,19 @@ def itc_duration(df,tag,tags):
     alone=np.asarray(alone)[:-1]*durations[1:]
     alone=np.append(alone,np.nan)
     df_dic={i:z for i,z in zip(mice_list,data)}
-    df_dic['alone']=alone
-    df_dic['frame']=df.frame.values
-    return pd.DataFrame(df_dic)
+    df_itc=pd.DataFrame(df_dic)
+    df_itc=df_itc.fillna(value=0)
+    vals=np.asarray([df_itc[col].values for col in df_itc.columns])
+    na_itc=np.apply_along_axis(np.count_nonzero,1,vals.T)
+    n_animal_cols={f'itc_{count+1}': get_itc_count(count+1,na_itc) 
+                   for count in range(len(tags)-1)}
+    for k,v in n_animal_cols.items():
+        durs=v[:-1]*durations[1:]
+        durs=np.append(durs,np.nan)
+        df_itc[k]=durs
+    df_itc['alone']=alone
+    df_itc['frame']=df.frame.values
+    return df_itc
 
 
 

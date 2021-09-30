@@ -91,8 +91,9 @@ def sublist_decompose(list_of_list):
     return [bpt for bpts in list_of_list for bpt in bpts]
 
 
-def bboxContains(bbox,pt,slack=5):
-    logic = bbox[0]-slack<= pt[0] <= bbox[2]+slack and bbox[1]-slack<= pt[1] <= bbox[3]+slack
+def bboxContains(bbox,pt,slack=0.05):
+    bb=apply_slack_bb(bbox,slack)
+    logic = bb[0]-slack<= pt[0] <= bb[2]+slack and bb[1]-slack<= pt[1] <= bb[3]+slack
     return logic
 
 def RFID_ious(RFID, bbox,RFID_coords):
@@ -125,10 +126,15 @@ def list_split(it,size):
     it = iter(it)
     return list(iter(lambda: tuple(islice(it, size)), ()))
 
+
+def apply_slack_bb(bb,slack):
+    x_slack=0.5*slack*(bb[2]-bb[0])
+    y_slack=0.5*slack*(bb[3]-bb[1])
+    bbox=[bb[0]+int(x_slack),bb[1]+int(y_slack),bb[2]+int(x_slack),bb[3]+int(y_slack),bb[4]]
+    return bbox
+
 def apply_slack(listbb,slack):
-    for bbi in range(len(listbb)):
-        listbb[bbi]=[listbb[bbi][0]+slack,listbb[bbi][1]+slack,listbb[bbi][2]+slack,listbb[bbi][3]+slack,listbb[bbi][4]]
-    return listbb
+    return [apply_slack_bb(bb, slack) for bb in listbb]
 
 
 
@@ -166,7 +172,13 @@ def detect_config_loader(path):
 def array2list(array):
     return [i.tolist() for i in array]
 
-
+def roatate_frame(frame, degree):
+    (h, w) = frame.shape[:2]
+    (cX, cY) = (w // 2, h // 2)
+    # rotate our image by 45 degrees around the center of the image
+    M = cv2.getRotationMatrix2D((cX, cY), degree, 1.0)
+    rotated = cv2.warpAffine(frame, M, (w, h))
+    return rotated
 
 def tracking_config_loader(path):
     config = ConfigParser()
@@ -196,6 +208,7 @@ def analysis_config_loader(path):
     config_dic['entr_frames']=int(config.get(cfg, 'entr_frames'))
     config_dic['reader_thres']= float(config.get(cfg, 'reader_thres'))
     config_dic['trac_interpolation']=int(config.get(cfg, 'trac_interpolation'))
+    config_dic['itc_slack']=float(config.get(cfg, 'itc_slack'))
     entrance_readers= str(config.get(cfg, 'entrance_reader')).split(',')
     entrance_readers[0]=eval(entrance_readers[0])
     entrance_readers[1]=int(entrance_readers[1])
@@ -214,5 +227,5 @@ def dlc_config_loader(path):
     config_dic['dbpt']=str(config.get(cfg, 'dbpts')).split(',')
     config_dic['dbpt_distance_compute']=str(config.get(cfg, 'dbpt_distance_compute')).split(',')
     config_dic['dbpt_int']=str(config.get(cfg, 'dbpt_int')).split(',')
-    config_dic['dbpt_box_slack']=int(config.get(cfg, 'dbpt_box_slack'))
+    config_dic['dbpt_box_slack']=float(config.get(cfg, 'dbpt_box_slack'))
     return config_dic
