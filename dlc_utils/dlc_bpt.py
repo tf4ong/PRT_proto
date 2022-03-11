@@ -12,7 +12,6 @@ import pandas as pd
 import time 
 from tqdm import tqdm
 import shutil
-import sys
 flags.DEFINE_string('config_path', '/home/tony/multi_dlc_homecage-TF-2020-10-05/config.yaml',
                     'path to DLC config file')
 flags.DEFINE_string('data','./data','path to video and RFID csv file for tracker cage')

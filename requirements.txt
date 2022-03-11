@@ -24,4 +24,4 @@ easydict
 pillow
 traja
 decord
-
+labelme
